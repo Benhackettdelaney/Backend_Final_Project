@@ -1,9 +1,12 @@
-from faker import Faker
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from extensions import db
 from app import app
 from models.user import User
 
-fake = Faker()
 
 def seed_user():
     with app.app_context():
