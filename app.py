@@ -1,27 +1,28 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate
-from models import db  
-from models import db, Movie 
-from routes.auth import auth_bp  
-from routes.movie_routes import movies_bp  
+from routes.movie_routes import movie_bp
+from extensions import db, migrate
+from config.config import Config
+from models.movie import Movie 
+from models.user import User 
 
 app = Flask(__name__)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///recommender.db"  
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False 
 
-db.init_app(app)  
-bcrypt = Bcrypt(app)  
-jwt = JWTManager(app)  
-migrate = Migrate(app, db) 
+app.config.from_object(Config)
 
 
-app.register_blueprint(auth_bp, url_prefix="/auth") 
-app.register_blueprint(movies_bp, url_prefix="/movies")  
+db.init_app(app)
+migrate.init_app(app, db)
 
 
-if __name__ == "__main__":
-    app.run(debug=True) 
+app.register_blueprint(movie_bp, url_prefix='/movies')
+
+@app.route('/', methods=['GET'])
+def hello_world():
+    return "Hello World"
+
+with app.app_context():
+    db.create_all()
+
+if __name__ == '__main__':
+    app.run(port=3000, debug=True)
