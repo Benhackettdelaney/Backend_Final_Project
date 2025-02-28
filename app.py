@@ -1,6 +1,6 @@
 from flask import Flask
 from routes.movie_routes import movie_bp
-from extensions import db, migrate
+from extensions.__init__ import db, migrate
 from config.config import Config
 from models.movie import Movie 
 from models.user import User 

@@ -12,15 +12,15 @@ def seed_user():
             password="password",
             user_gender=0,
             user_occupation_label=5,
-            raw_user_age=25, 
+            raw_user_age=25,
         )
 
         testUser2 = User(
             email="user2@user.com",
             password="password",
             user_gender=1,
-            user_occupation_label=10,  
-            raw_user_age=30,  
+            user_occupation_label=10,
+            raw_user_age=30,
         )
 
         db.session.add(testUser1)

@@ -9,7 +9,7 @@ fake = Faker()
 NUM_MOVIES = 5
 
 def seed_movie():
-    with app.app_context():  
+    with app.app_context():
         for _ in range(NUM_MOVIES):
             movie = Movie(
                 movie_title=fake.sentence(nb_words=1),
@@ -19,9 +19,9 @@ def seed_movie():
             db.session.add(movie)
             db.session.commit()
 
-        print(f"{NUM_MOVIES} fake movies seeded successfully")  
+        print(f"{NUM_MOVIES} fake movies seeded successfully")
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     print("Starting Movie Seeding..")
     seed_movie()
     print("Movie Seeding Complete..")
