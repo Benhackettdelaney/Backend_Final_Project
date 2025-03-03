@@ -4,6 +4,7 @@ from extensions import db, migrate
 from config.config import Config
 from models.movie import Movie 
 from models.user import User 
+from app import app 
 
 app = Flask(__name__)
 
