@@ -1,4 +1,5 @@
-from extensions import db, ratings_table, watchlist_table
+# models/user.py
+from extensions import db
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -10,17 +11,9 @@ class User(db.Model):
     user_rating = db.Column(db.Float, nullable=False)
     role = db.Column(db.String, nullable=False, default="user")
 
-    ratings = db.relationship(
-        'Movie',
-        secondary=ratings_table,
-        back_populates='ratings'
-    )
-
-    watchlist = db.relationship(
-        'Movie',
-        secondary=watchlist_table,
-        back_populates='watchlist'
-    )
+    # Relationships to movies via Rating and Watchlist models
+    ratings = db.relationship('Movie', secondary='ratings', back_populates='rated_by')
+    watchlist = db.relationship('Movie', secondary='watchlist', back_populates='in_watchlists')
 
     def is_admin(self):
         return self.role == "admin"
@@ -30,4 +23,3 @@ class User(db.Model):
 
     def __repr__(self):
         return f"User('{self.email}', '{self.password}')"
-

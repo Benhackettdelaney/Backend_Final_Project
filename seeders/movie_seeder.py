@@ -31,7 +31,6 @@ def seed_movie():
             movie_id = movie["movie_id"].numpy().decode('utf-8')
             movie_title = movie["movie_title"].numpy().decode('utf-8')
             genre_ids = movie["movie_genres"].numpy().tolist()
-            # Filter out invalid genre IDs and map to names
             valid_genre_ids = [gid for gid in genre_ids if gid in genre_map]
             movie_genres = ", ".join(genre_map[gid] for gid in valid_genre_ids) or "Unknown"
             print(f"Seeding: ID={movie_id}, Title={movie_title}, Genres={movie_genres}")
@@ -39,7 +38,7 @@ def seed_movie():
             existing_movie = Movie.query.filter_by(id=movie_id).first()
             if not existing_movie:
                 new_movie = Movie(
-                    id=movie_id,
+                    id=movie_id,  # Use MovieLens ID as primary key
                     movie_title=movie_title,
                     movie_genres=movie_genres
                 )

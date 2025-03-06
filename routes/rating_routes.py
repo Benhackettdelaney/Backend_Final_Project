@@ -1,14 +1,14 @@
-# routes/rating_routes.py
 from flask import Blueprint, request, jsonify
-from extensions import db, ratings_table
+from models.rating import Rating
 from models.movie import Movie
 from models.user import User
+from extensions import db
 
 rating_bp = Blueprint('rating_bp', __name__)
 
 @rating_bp.route('', methods=['POST'])
 def add_rating():
-    """Allow a user to rate a movie, storing the rating in ratings_table."""
+    """Allow a user to rate a movie, storing the rating with a unique ID."""
     print(f"Request method: {request.method}")
     print(f"Request headers: {request.headers}")
     print(f"Request body: {request.get_data(as_text=True)}")
@@ -37,23 +37,20 @@ def add_rating():
         return jsonify({'error': f'Movie with ID {movie_id} not found'}), 404
 
     try:
-        existing_rating = db.session.query(ratings_table).filter_by(user_id=user_id, movie_id=movie_id).first()
+        existing_rating = Rating.query.filter_by(user_id=user_id, movie_id=movie_id).first()
         if existing_rating:
-            stmt = db.update(ratings_table).where(
-                (ratings_table.c.user_id == user_id) &
-                (ratings_table.c.movie_id == movie_id)
-            ).values(rating=rating)
-            db.session.execute(stmt)
+            existing_rating.rating = rating
             action = "updated"
         else:
-            stmt = db.insert(ratings_table).values(user_id=user_id, movie_id=movie_id, rating=rating)
-            db.session.execute(stmt)
+            new_rating = Rating(user_id=user_id, movie_id=movie_id, rating=rating)
+            db.session.add(new_rating)
             action = "added"
 
         db.session.commit()
         print(f"Rating {action}: User {user_id}, Movie {movie_id}, Rating {rating}")
         return jsonify({
-            'message': f'Successfully {action} rating for {movie.movie_title} with {rating}'
+            'message': f'Successfully {action} rating for {movie.movie_title} with {rating}',
+            'id': existing_rating.id if existing_rating else new_rating.id
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -62,13 +59,12 @@ def add_rating():
 
 @rating_bp.route('', methods=['GET'])
 def get_user_ratings():
-    """Return all movies rated by a user for display in the front-end."""
+    """Return all movies rated by a user with their rating IDs."""
     print(f"Request method: {request.method}")
     print(f"Request headers: {request.headers}")
     print(f"Request body: {request.get_data(as_text=True)}")
 
-    # Get user_id from JSON body instead of query parameters
-    json_data = request.get_json(silent=True)  # silent=True to avoid 400 if no body
+    json_data = request.get_json(silent=True)
     if json_data and 'user_id' in json_data:
         user_id = json_data['user_id']
     else:
@@ -84,21 +80,17 @@ def get_user_ratings():
         return jsonify({'error': f'User with ID {user_id} not found'}), 404
 
     try:
-        rated_movies = (
-            db.session.query(Movie, ratings_table.c.rating)
-            .join(ratings_table, Movie.id == ratings_table.c.movie_id)
-            .filter(ratings_table.c.user_id == user_id)
-            .all()
-        )
-
+        ratings = Rating.query.filter_by(user_id=user_id).all()
         rated_movies_list = [
             {
-                "title": movie.movie_title,
-                "rating": float(rating),
-                "genres": movie.movie_genres,
-                "movie_id": movie.id
+                "id": rating.id,
+                "title": rating_movie.movie_title,
+                "rating": float(rating.rating),
+                "genres": rating_movie.movie_genres,
+                "movie_id": rating.movie_id
             }
-            for movie, rating in rated_movies
+            for rating in ratings
+            if (rating_movie := Movie.query.get(rating.movie_id))  # Fetch movie details
         ]
 
         print(f"User {user_id} rated movies: {rated_movies_list}")
