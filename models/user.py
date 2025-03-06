@@ -11,8 +11,19 @@ class User(db.Model):
     user_rating = db.Column(db.Float, nullable=False)
     role = db.Column(db.String, nullable=False, default="user")  
 
-    ratings = db.relationship('Movie', secondary=ratings_table, backref='users')
-    watchlist = db.relationship('Movie', secondary=watchlist_table, backref='users_in_watchlist')
+    # Many-to-many relationship with Movie for ratings
+    ratings = db.relationship(
+        'Movie',
+        secondary=ratings_table,
+        back_populates='ratings'  # Link to Movie's ratings
+    )
+
+    # Many-to-many relationship with Movie for watchlist
+    watchlist = db.relationship(
+        'Movie',
+        secondary=watchlist_table,
+        back_populates='watchlist'  # Link to Movie's watchlist
+    )
 
     def is_admin(self):
         return self.role == "admin"

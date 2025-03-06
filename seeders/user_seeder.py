@@ -7,12 +7,10 @@ from app import app
 from models.user import User
 from models.movie import Movie
 
-# Add the root directory to sys.path (one level up from seeders/)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def seed_user():
     with app.app_context():
-        # Seed admin user
         admin_email = "admin@moviemuse.com"
         admin_password = "adminpassword"
         
@@ -31,24 +29,26 @@ def seed_user():
             db.session.commit()
             print("Admin user created.")
 
-        # Load the MovieLens 100k ratings dataset
         ratings_dataset = tfds.load("movielens/100k-ratings", split="train")
         user_map = {}
         batch_size = 1000
         counter = 0
-        new_users = []  # Track new users to commit
+        new_users = []
+        max_users = 20  # Limit to 20 users (including admin)
 
-        print("Seeding users and ratings from MovieLens 100k...")
+        if not existing_admin:
+            user_map["admin"] = admin_user.id
+
+        print("Seeding users and ratings from MovieLens 100k (limited to 20 users)...")
         for rating in ratings_dataset:
             user_id = rating["user_id"].numpy().decode('utf-8')
             movie_id = rating["movie_id"].numpy().decode('utf-8')
-            user_rating = float(rating["user_rating"].numpy())
-            user_gender = rating["user_gender"].numpy()
-            user_age = rating["raw_user_age"].numpy()
-            user_occupation_label = rating["user_occupation_label"].numpy()
+            user_rating_value = float(rating["user_rating"].numpy())
+            user_gender = int(rating["user_gender"].numpy())
+            user_age = int(rating["raw_user_age"].numpy())
+            user_occupation_label = int(rating["user_occupation_label"].numpy())
 
-            # Check if user already exists in the database or user_map
-            if user_id not in user_map:
+            if user_id not in user_map and len(user_map) < max_users:
                 email = f"user{user_id}@moviemuse.com"
                 existing_user = User.query.filter_by(email=email).first()
                 if not existing_user:
@@ -62,44 +62,46 @@ def seed_user():
                         role="user"
                     )
                     db.session.add(new_user)
-                    new_users.append(new_user)  # Add to list for batch commit
-                    user_map[user_id] = None  # Placeholder until committed
+                    new_users.append(new_user)
+                    user_map[user_id] = None
                 else:
                     user_map[user_id] = existing_user.id
 
-            # Associate rating with movie if it exists
-            movie = Movie.query.filter_by(id=movie_id).first()
-            if movie and user_map[user_id] is not None:  # Only if user_id is set
-                existing_rating = db.session.query(ratings_table).filter_by(
-                    user_id=user_map[user_id], movie_id=movie.id
-                ).first()
-                if not existing_rating:
-                    db.session.execute(
-                        ratings_table.insert().values(
-                            user_id=user_map[user_id],
-                            movie_id=movie.id,
-                            rating=user_rating
+            if user_id in user_map:
+                movie = Movie.query.filter_by(id=movie_id).first()
+                if movie and user_map[user_id] is not None:
+                    existing_rating = db.session.query(ratings_table).filter_by(
+                        user_id=user_map[user_id], movie_id=movie.id
+                    ).first()
+                    if not existing_rating:
+                        db.session.execute(
+                            ratings_table.insert().values(
+                                user_id=user_map[user_id],
+                                movie_id=movie.id,
+                                rating=user_rating_value
+                            )
                         )
-                    )
 
             counter += 1
             if counter % batch_size == 0:
-                # Commit new users first to assign IDs
                 if new_users:
                     db.session.commit()
                     for user in new_users:
-                        user_map[user.email.split('@')[0][4:]] = user.id  # Update user_map with actual IDs
+                        user_map[user.email.split('@')[0][4:]] = user.id
                     new_users.clear()
-                db.session.commit()  # Commit ratings
+                db.session.commit()
                 print(f"Committed {counter} ratings...")
+                if len(user_map) >= max_users:
+                    break
 
-        # Final commit for remaining records
         if new_users:
             db.session.commit()
             for user in new_users:
                 user_map[user.email.split('@')[0][4:]] = user.id
         db.session.commit()
-        print(f"Seeded {len(user_map)} users and {counter} ratings successfully.")
+
+        total_ratings = db.session.query(ratings_table).count()
+        print(f"Seeded {len(user_map)} users and {total_ratings} ratings successfully.")
 
 if __name__ == "__main__":
     print("Starting User Seeding...")

@@ -6,23 +6,20 @@ from extensions import db
 from app import app
 from models.movie import Movie
 
-# Add the root directory to sys.path (one level up from seeders/)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def seed_movie():
     with app.app_context():
-        # Load the MovieLens 100k movies dataset
-        dataset = tfds.load("movielens/100k-movies", split="train")
-        print("Seeding movies from MovieLens 100k...")
+        dataset = tfds.load("movielens/100k-movies", split="train").take(30)  # Limit to 30 movies
+        print("Seeding movies from MovieLens 100k (limited to 30 movies)...")
         
-        batch_size = 100  # Batch commits for performance
+        batch_size = 100
         counter = 0
         
         for movie in dataset:
             movie_id = movie["movie_id"].numpy().decode('utf-8')
             movie_title = movie["movie_title"].numpy().decode('utf-8')
-            # No genre data in this TFDS split; use a default
-            movie_genres = "Unknown"  # Placeholder since genres aren’t available
+            movie_genres = "Unknown"
 
             existing_movie = Movie.query.filter_by(id=movie_id).first()
             if not existing_movie:
@@ -38,11 +35,9 @@ def seed_movie():
                 db.session.commit()
                 print(f"Committed {counter} movies...")
 
-        # Final commit for remaining movies
         db.session.commit()
         print(f"Seeded {Movie.query.count()} movies successfully.")
 
 if __name__ == "__main__":
     print("Starting Movie Seeding...")
     seed_movie()
-    print("Movie Seeding Complete.")

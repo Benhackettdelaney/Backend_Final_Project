@@ -16,14 +16,16 @@ migrate.init_app(app, db)
 
 app.register_blueprint(movie_bp, url_prefix='/movies')
 app.register_blueprint(ranking_bp, url_prefix='/ranking')
-app.register_blueprint(watchlist_bp, url_prefix='/watchlist')
+app.register_blueprint(watchlist_bp, url_prefix='/watchlists')
 
 @app.route('/', methods=['GET'])
 def hello_world():
     return "Hello World"
 
 with app.app_context():
-    db.create_all()
+   # db.drop_all()  
+  #  print("All tables dropped.")
+    db.create_all()  
     print("Database tables created or verified.")
 
 if __name__ == '__main__':

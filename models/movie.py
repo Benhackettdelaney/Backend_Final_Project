@@ -6,8 +6,20 @@ class Movie(db.Model):
     movie_title = db.Column(db.String(100), nullable=False)
     movie_genres = db.Column(db.String(100), nullable=False)
 
-    ratings = db.relationship('User', secondary=ratings_table, backref='movies')
-    watchlist = db.relationship('User', secondary=watchlist_table, backref='movies_in_watchlist', cascade='all, delete')
+    # Many-to-many relationship with User for ratings
+    ratings = db.relationship(
+        'User',
+        secondary=ratings_table,
+        back_populates='ratings'  # Link to User's ratings
+    )
+
+    # Many-to-many relationship with User for watchlist
+    watchlist = db.relationship(
+        'User',
+        secondary=watchlist_table,
+        back_populates='watchlist',  # Link to User's watchlist
+        cascade='all, delete'  # Delete watchlist entries when Movie is deleted
+    )
 
     def __repr__(self):
         return f"Movie('{self.movie_title}', '{self.movie_genres}')"
