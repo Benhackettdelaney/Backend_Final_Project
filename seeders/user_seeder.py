@@ -6,8 +6,11 @@ from extensions import db, ratings_table
 from app import app
 from models.user import User
 from models.movie import Movie
+from flask_bcrypt import Bcrypt  # Add this import
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+bcrypt = Bcrypt()  # Initialize bcrypt
 
 def seed_user():
     with app.app_context():
@@ -16,9 +19,10 @@ def seed_user():
         
         existing_admin = User.query.filter_by(email=admin_email).first()
         if not existing_admin:
+            hashed_admin_password = bcrypt.generate_password_hash(admin_password).decode('utf-8')
             admin_user = User(
                 email=admin_email,
-                password=admin_password,
+                password=hashed_admin_password,  # Hashed password
                 user_gender=0,
                 user_occupation_label=0,
                 raw_user_age=30,
@@ -52,9 +56,10 @@ def seed_user():
                 email = f"user{user_id}@moviemuse.com"
                 existing_user = User.query.filter_by(email=email).first()
                 if not existing_user:
+                    hashed_password = bcrypt.generate_password_hash("password123").decode('utf-8')  # Hash the password
                     new_user = User(
                         email=email,
-                        password="password",
+                        password=hashed_password,  
                         user_gender=user_gender,
                         user_occupation_label=user_occupation_label,
                         raw_user_age=user_age,
