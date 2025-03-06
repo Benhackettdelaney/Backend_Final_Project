@@ -44,3 +44,7 @@ def get_recommendations():
     recommended_movies = [{"movie_title": title} for title in titles[0][:3]]
 
     return jsonify(recommended_movies)
+
+
+
+
