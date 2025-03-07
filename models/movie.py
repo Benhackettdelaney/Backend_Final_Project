@@ -2,7 +2,7 @@
 from extensions import db
 
 class Movie(db.Model):
-    id = db.Column(db.String(10), primary_key=True)  # MovieLens ID as primary key
+    id = db.Column(db.String(10), primary_key=True)  
     movie_title = db.Column(db.String(100), nullable=False)
     movie_genres = db.Column(db.String(100), nullable=False)
 

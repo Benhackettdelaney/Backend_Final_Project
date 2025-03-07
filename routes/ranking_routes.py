@@ -7,7 +7,7 @@ from models.movie import Movie
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
-# Load the ranking model (do this once at startup, no app context needed)
+# Load the ranking model 
 try:
     ranking_model = tf.saved_model.load("ml_models/ranking_model")
     print("Ranking model loaded successfully")
