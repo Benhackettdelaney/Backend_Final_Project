@@ -81,3 +81,15 @@ def logout():
     session.pop('user_id', None) 
     print("User logged out")
     return jsonify({"message": "Successfully logged out"}), 200
+
+@auth_bp.route("/current-user", methods=["GET"])
+def current_user():
+    print(f"Session contents: {session}")
+    if 'user_id' in session:
+        user = User.query.get(session['user_id'])
+        if user:
+            return jsonify({
+                "user_id": user.id,
+                "email": user.email  
+            }), 200
+    return jsonify({"error": "Not authenticated"}), 401

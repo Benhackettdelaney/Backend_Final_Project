@@ -68,6 +68,27 @@ def get_user_watchlist():
         "title": item.title
     } for item in watchlist_items]), 200
 
+@watchlist_bp.route('/<int:id>', methods=['GET'])
+def get_watchlist_item(id):
+    """Get a single watchlist item by ID for the authenticated user."""
+    user_id = check_auth()
+    if not user_id:
+        return jsonify({'error': 'Unauthorized: Please log in'}), 401
+    
+    try:
+        watchlist_item = Watchlist.query.filter_by(id=id, user_id=user_id).first()
+        if not watchlist_item:
+            return jsonify({'error': 'Watchlist entry not found or not yours'}), 404
+        
+        return jsonify({
+            "id": watchlist_item.id,
+            "user_id": watchlist_item.user_id,
+            "movie_id": watchlist_item.movie_id,
+            "title": watchlist_item.title
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch watchlist item: {str(e)}'}), 500
+
 @watchlist_bp.route('/update/<int:id>', methods=['PUT'])
 def update_watchlist_entry(id):
     user_id = check_auth()
@@ -82,7 +103,6 @@ def update_watchlist_entry(id):
         return jsonify({'error': 'Missing title'}), 400
     
     try:
-        # Check if the watchlist entry exists for this user
         watchlist_item = Watchlist.query.filter_by(id=id, user_id=user_id).first()
         if not watchlist_item:
             return jsonify({'error': 'Watchlist entry not found or not yours'}), 404
