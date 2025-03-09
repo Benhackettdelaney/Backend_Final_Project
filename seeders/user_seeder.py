@@ -103,7 +103,6 @@ def seed_user():
                 if len(user_map) >= max_users:
                     break
 
-        # Final commit for any remaining new users or ratings
         if new_users:
             db.session.commit()
             for new_user in new_users:

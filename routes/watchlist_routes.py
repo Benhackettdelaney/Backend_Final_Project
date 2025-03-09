@@ -70,7 +70,6 @@ def get_user_watchlist():
 
 @watchlist_bp.route('/update/<int:id>', methods=['PUT'])
 def update_watchlist_entry(id):
-    """Update a watchlist entry's title for the authenticated user by ID."""
     user_id = check_auth()
     if not user_id:
         return jsonify({'error': 'Unauthorized: Please log in'}), 401

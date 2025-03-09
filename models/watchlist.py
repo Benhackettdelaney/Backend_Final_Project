@@ -1,11 +1,10 @@
-# models/watchlist.py
 from extensions import db
 
 class Watchlist(db.Model):
     __tablename__ = 'watchlist'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    movie_id = db.Column(db.String(10), db.ForeignKey('movie.id'), nullable=False)  # Changed to String
+    movie_id = db.Column(db.String(10), db.ForeignKey('movie.id'), nullable=False)  
     title = db.Column(db.String(100), nullable=False)
 
     user = db.relationship('User', backref='watchlist_entries')

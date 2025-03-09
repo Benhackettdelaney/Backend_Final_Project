@@ -59,7 +59,6 @@ def add_rating():
 
 @rating_bp.route('', methods=['GET'])
 def get_user_ratings():
-    """Return all movies rated by a user with their rating IDs."""
     print(f"Request method: {request.method}")
     print(f"Request headers: {request.headers}")
     print(f"Request body: {request.get_data(as_text=True)}")

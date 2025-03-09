@@ -16,7 +16,6 @@ def create_movie():
     if not data or 'id' not in data or 'movie_title' not in data or 'movie_genres' not in data:
         return jsonify({'error': 'Missing id, movie_title, or movie_genres'}), 400
     
-    # Check if the ID already exists
     if Movie.query.get(data['id']):
         return jsonify({'error': f"Movie with ID {data['id']} already exists"}), 409
 

@@ -1,4 +1,3 @@
-# models/user.py
 from extensions import db
 
 class User(db.Model):
@@ -11,7 +10,6 @@ class User(db.Model):
     user_rating = db.Column(db.Float, nullable=False)
     role = db.Column(db.String, nullable=False, default="user")
 
-    # Relationships to movies via Rating and Watchlist models
     ratings = db.relationship('Movie', secondary='ratings', back_populates='rated_by')
     watchlist = db.relationship('Movie', secondary='watchlist', back_populates='in_watchlists')
 
