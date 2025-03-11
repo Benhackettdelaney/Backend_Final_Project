@@ -20,7 +20,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = False 
 
 CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
-
+print("CORS configured with origins: http://localhost:3000")
 app.logger.debug("Starting Flask app")
 
 db.init_app(app)

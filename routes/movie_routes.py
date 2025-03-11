@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models.movie import Movie
+from models.watchlist import Watchlist
+from models.rating import Rating
 from extensions import db
 
 movie_bp = Blueprint('movie_bp', __name__)
@@ -21,7 +23,7 @@ def create_movie():
 
     try:
         new_movie = Movie(
-            id=data['id'],  # Require id from the request
+            id=data['id'],
             movie_title=data['movie_title'],
             movie_genres=data['movie_genres']
         )
@@ -42,7 +44,7 @@ def get_movies():
     } for movie in movies]), 200
 
 @movie_bp.route('/<id>', methods=['GET'])
-def single_movie(id):  # Changed from <int:id> to <id> since id is a string
+def single_movie(id):
     movie = Movie.query.get_or_404(id)
     return jsonify({
         "id": movie.id,
@@ -51,7 +53,7 @@ def single_movie(id):  # Changed from <int:id> to <id> since id is a string
     }), 200
 
 @movie_bp.route('/update/<id>', methods=['PUT'])
-def update_movie(id):  # Changed from <int:id> to <id>
+def update_movie(id):
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
@@ -70,12 +72,14 @@ def update_movie(id):  # Changed from <int:id> to <id>
         return jsonify({'error': f'Failed to update movie: {str(e)}'}), 500
 
 @movie_bp.route('/delete/<id>', methods=['DELETE'])
-def delete_movie(id):  # Changed from <int:id> to <id>
+def delete_movie(id):
     movie = Movie.query.get_or_404(id)
     try:
+        Rating.query.filter_by(movie_id=id).delete()
+        Watchlist.query.filter_by(movie_id=id).delete()
         db.session.delete(movie)
         db.session.commit()
-        return jsonify({'message': 'Movie and its associated watchlist entries deleted successfully'}), 200
+        return jsonify({'message': 'Movie and its associated entries deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to delete movie: {str(e)}'}), 500

@@ -10,7 +10,6 @@ class User(db.Model):
     user_rating = db.Column(db.Float, nullable=False)
     role = db.Column(db.String, nullable=False, default="user")
 
-    ratings = db.relationship('Movie', secondary='ratings', back_populates='rated_by')
     watchlist = db.relationship('Movie', secondary='watchlist', back_populates='in_watchlists')
 
     def is_admin(self):

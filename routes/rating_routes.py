@@ -61,13 +61,11 @@ def add_rating():
 def get_user_ratings():
     print(f"Request method: {request.method}")
     print(f"Request headers: {request.headers}")
-    print(f"Request body: {request.get_data(as_text=True)}")
+    print(f"Request query params: {request.args}")
 
-    json_data = request.get_json(silent=True)
-    if json_data and 'user_id' in json_data:
-        user_id = json_data['user_id']
-    else:
-        return jsonify({'error': 'user_id is required in the request body'}), 400
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id is required in query parameter'}), 400
 
     try:
         user_id = int(user_id)
@@ -89,7 +87,7 @@ def get_user_ratings():
                 "movie_id": rating.movie_id
             }
             for rating in ratings
-            if (rating_movie := Movie.query.get(rating.movie_id))  # Fetch movie details
+            if (rating_movie := Movie.query.get(rating.movie_id)) 
         ]
 
         print(f"User {user_id} rated movies: {rated_movies_list}")

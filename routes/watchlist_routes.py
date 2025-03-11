@@ -8,33 +8,30 @@ watchlist_bp = Blueprint('watchlist_bp', __name__)
 
 def check_auth():
     """Check if a user is authenticated and return their user_id."""
+    print(f"Session contents in check_auth: {session}")  
     user_id = session.get('user_id')
     if not user_id:
+        print("No user_id found in session") 
         return None
     return user_id
 
 @watchlist_bp.route('/create', methods=['POST'])
 def add_to_watchlist():
-    """Add a movie to the authenticated user's watchlist."""
-    user_id = check_auth()
-    if not user_id:
-        return jsonify({'error': 'Unauthorized: Please log in'}), 401
-    
-    print(f"Request headers: {request.headers}")
-    print(f"Request data: {request.data}")
+    """Add a movie to the user's watchlist using user_id from request body."""
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
     data = request.json
     print(f"Parsed JSON: {data}")
-    if not data or 'movie_id' not in data or 'title' not in data:
-        return jsonify({'error': 'Missing movie_id or title'}), 400
+    if not data or 'movie_id' not in data or 'title' not in data or 'user_id' not in data:
+        return jsonify({'error': 'Missing movie_id, title, or user_id'}), 400
+    
+    user_id = data['user_id']
+    if not User.query.get(user_id):
+        return jsonify({'error': 'Unauthorized: Invalid user_id'}), 401
     
     try:
-        # Validate movie exists
         Movie.query.get_or_404(data['movie_id'])
-        
-        # Check if entry already exists for this user
         existing_entry = Watchlist.query.filter_by(
             user_id=user_id, movie_id=data['movie_id']
         ).first()
