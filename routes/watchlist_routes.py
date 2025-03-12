@@ -8,7 +8,7 @@ watchlist_bp = Blueprint('watchlist_bp', __name__)
 
 @watchlist_bp.route('/create', methods=['POST'])
 def create_watchlist():
-    """Create a new watchlist for the user."""
+    """Create a new watchlist for the user with an optional initial movie_id."""
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
@@ -25,16 +25,25 @@ def create_watchlist():
         if Watchlist.query.filter_by(user_id=user_id, title=data['title']).first():
             return jsonify({'error': 'A watchlist with this title already exists'}), 409
         
+        movie_ids = []
+        if 'movie_id' in data and data['movie_id']:
+            movie_id = data['movie_id']
+            print(f"Adding initial movie_id: {movie_id}")
+            Movie.query.get_or_404(movie_id)
+            movie_ids.append(movie_id)
+        
         watchlist = Watchlist(
             user_id=user_id,
             title=data['title'],
-            movie_ids=[]
+            movie_ids=movie_ids
         )
         db.session.add(watchlist)
         db.session.commit()
+        print(f"Watchlist created - id={watchlist.id}, movie_ids={watchlist.movie_ids}")
         return jsonify({'message': 'Watchlist created successfully', 'id': watchlist.id}), 201
     except Exception as e:
         db.session.rollback()
+        print(f"Error during create: {str(e)}")
         return jsonify({'error': f'Failed to create watchlist: {str(e)}'}), 500
 
 @watchlist_bp.route('', methods=['GET'])
@@ -75,14 +84,14 @@ def get_watchlist_item(id):
 
 @watchlist_bp.route('/update/<int:id>', methods=['PUT'])
 def update_watchlist_entry(id):
-    """Update a watchlist’s title or append movie_ids to movie_ids."""
+    """Update a watchlist’s title, append movie_ids, or remove a movie_id."""
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
     data = request.json
     print(f"Parsed JSON: {data}")
-    if not data or ('title' not in data and 'movie_id' not in data and 'movie_ids' not in data) or 'user_id' not in data:
-        return jsonify({'error': 'Missing title, movie_id(s), or user_id'}), 400
+    if not data or ('title' not in data and 'movie_id' not in data and 'movie_ids' not in data and 'remove_movie_id' not in data) or 'user_id' not in data:
+        return jsonify({'error': 'Missing title, movie_id(s), remove_movie_id, or user_id'}), 400
     
     user_id = data['user_id']
     if not User.query.get(int(user_id)):
@@ -97,7 +106,7 @@ def update_watchlist_entry(id):
         if 'title' in data:
             watchlist.title = data['title']
             print(f"Updated title to: {watchlist.title}")
-        if 'movie_id' in data:  # Single movie ID
+        if 'movie_id' in data:  # Single movie ID to add
             movie_id = data['movie_id']
             print(f"Appending single movie_id: {movie_id}")
             Movie.query.get_or_404(movie_id)
@@ -105,7 +114,7 @@ def update_watchlist_entry(id):
                 return jsonify({'error': 'Movie already in this watchlist'}), 409
             watchlist.movie_ids = watchlist.movie_ids + [movie_id]
             print(f"After append (single) - Watchlist movie_ids: {watchlist.movie_ids}")
-        if 'movie_ids' in data:  # Multiple movie IDs
+        if 'movie_ids' in data:  # Multiple movie IDs to add
             movie_ids = data['movie_ids']
             print(f"Appending multiple movie_ids: {movie_ids}")
             for movie_id in movie_ids:
@@ -113,8 +122,16 @@ def update_watchlist_entry(id):
                 if movie_id not in watchlist.movie_ids:
                     watchlist.movie_ids = watchlist.movie_ids + [movie_id]
             print(f"After append (multiple) - Watchlist movie_ids: {watchlist.movie_ids}")
+        if 'remove_movie_id' in data:  # Movie ID to remove
+            remove_movie_id = data['remove_movie_id']
+            print(f"Removing movie_id: {remove_movie_id}")
+            if remove_movie_id not in watchlist.movie_ids:
+                return jsonify({'error': 'Movie not found in this watchlist'}), 404
+            # Reassign movie_ids to ensure change is tracked
+            watchlist.movie_ids = [id for id in watchlist.movie_ids if id != remove_movie_id]
+            db.session.add(watchlist)  # Ensure object is marked for update
+            print(f"After removal - Watchlist movie_ids: {watchlist.movie_ids}")
         
-        db.session.add(watchlist)
         db.session.commit()
         print(f"After commit - Watchlist movie_ids: {watchlist.movie_ids}")
         return jsonify({'message': 'Watchlist updated successfully'}), 200
@@ -140,4 +157,5 @@ def remove_from_watchlist(id):
         return jsonify({'message': 'Watchlist deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
+        print(f"Error during delete: {str(e)}")
         return jsonify({'error': f'Failed to remove watchlist: {str(e)}'}), 500
