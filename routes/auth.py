@@ -61,14 +61,15 @@ def login():
 
     email = data.get("email")
     password = data.get("password")
+    print(f"Login attempt: email={email}, password={password}")
 
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
     user = User.query.filter_by(email=email).first()
     if user and bcrypt.check_password_hash(user.password, password):
-        session['user_id'] = user.id  # Store user_id in session
-        print(f"User logged in: {user.id}, {user.email}")
+        session['user_id'] = user.id
+        print(f"User logged in: {user.id}, {user.email}, session={session}")
         return jsonify({
             "message": "Login successful",
             "user_id": user.id
