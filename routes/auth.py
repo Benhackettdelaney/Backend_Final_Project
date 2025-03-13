@@ -1,10 +1,24 @@
-from flask import Blueprint, request, jsonify, session
+# routes/auth.py
+from flask import Blueprint, request, jsonify
 from extensions import db
 from models.user import User
 from flask_bcrypt import Bcrypt
+from functools import wraps  
+from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, get_jwt_identity, jwt_required
 
 auth_bp = Blueprint('auth', __name__)
 bcrypt = Bcrypt()
+
+def admin_required(f):
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        user_id = get_jwt_identity()  # Returns string due to str() in create_access_token
+        user = User.query.get(int(user_id))  # Convert to int for DB query
+        if not user or not user.is_admin():
+            return jsonify({"error": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -12,14 +26,15 @@ def register():
     if not data:
         return jsonify({"error": "Request body must be JSON"}), 400
 
+    username = data.get("username")
     email = data.get("email")
     password = data.get("password")
     user_gender = data.get("user_gender")
     user_occupation_label = data.get("user_occupation_label")
     raw_user_age = data.get("raw_user_age")
 
-    if not all([email, password, user_gender, user_occupation_label, raw_user_age]):
-        return jsonify({"error": "All fields (email, password, user_gender, user_occupation_label, raw_user_age) are required"}), 400
+    if not all([username, email, password, user_gender, user_occupation_label, raw_user_age]):
+        return jsonify({"error": "All fields are required"}), 400
 
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
@@ -31,11 +46,12 @@ def register():
     except ValueError:
         return jsonify({"error": "user_gender, user_occupation_label, and raw_user_age must be integers"}), 400
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already registered"}), 400
+    if User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first():
+        return jsonify({"error": "Email or username already registered"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
     new_user = User(
+        username=username,
         email=email,
         password=hashed_password,
         user_gender=user_gender,
@@ -48,7 +64,14 @@ def register():
     try:
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"message": "Registration successful", "user_id": new_user.id}), 201
+        access_token = create_access_token(identity=str(new_user.id))  # Ensure string
+        response = jsonify({
+            "message": "Registration successful",
+            "user_id": str(new_user.id),
+            "access_token": access_token  # Return token in body
+        })
+        set_access_cookies(response, access_token)  # Still set cookie (optional)
+        return response, 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to register: {str(e)}"}), 500
@@ -61,36 +84,40 @@ def login():
 
     email = data.get("email")
     password = data.get("password")
-    print(f"Login attempt: email={email}, password={password}")
 
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
     user = User.query.filter_by(email=email).first()
     if user and bcrypt.check_password_hash(user.password, password):
-        session['user_id'] = user.id
-        print(f"User logged in: {user.id}, {user.email}, session={session}")
-        return jsonify({
+        access_token = create_access_token(identity=str(user.id))
+        print(f"Generated token for user {user.id}: {access_token}")  
+        response = jsonify({
             "message": "Login successful",
-            "user_id": user.id
-        }), 200
-
+            "user_id": str(user.id),
+            "role": user.role,
+            "access_token": access_token
+        })
+        set_access_cookies(response, access_token)
+        return response, 200
     return jsonify({"error": "Invalid email or password"}), 401
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
-    session.pop('user_id', None) 
-    print("User logged out")
-    return jsonify({"message": "Successfully logged out"}), 200
+    response = jsonify({"message": "Successfully logged out"})
+    unset_jwt_cookies(response)
+    return response, 200
 
 @auth_bp.route("/current-user", methods=["GET"])
+@jwt_required()
 def current_user():
-    print(f"Session contents: {session}")
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-        if user:
-            return jsonify({
-                "user_id": user.id,
-                "email": user.email  
-            }), 200
-    return jsonify({"error": "Not authenticated"}), 401
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if user:
+        return jsonify({
+            "user_id": user_id,
+            "email": user.email,
+            "username": user.username,
+            "role": user.role
+        }), 200
+    return jsonify({"error": "User not found"}), 404

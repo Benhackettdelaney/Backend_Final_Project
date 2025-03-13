@@ -1,3 +1,4 @@
+# [Your user seeder file]
 import sys
 import os
 import tensorflow_datasets as tfds
@@ -7,11 +8,14 @@ from models.user import User
 from models.movie import Movie
 from models.rating import Rating
 from models.watchlist import Watchlist
+from models.reviews import Review  
 from flask_bcrypt import Bcrypt
+from faker import Faker
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 bcrypt = Bcrypt()
+fake = Faker()
 
 def seed_user():
     with app.app_context():
@@ -22,6 +26,7 @@ def seed_user():
         if not existing_admin:
             hashed_admin_password = bcrypt.generate_password_hash(admin_password).decode('utf-8')
             admin_user = User(
+                username="admin",
                 email=admin_email,
                 password=hashed_admin_password,
                 user_gender=0,
@@ -33,18 +38,20 @@ def seed_user():
             db.session.add(admin_user)
             db.session.commit()
             print("Admin user created.")
+        else:
+            admin_user = existing_admin  # Use existing admin if already created
 
-        ratings_dataset = tfds.load("movielens/100k-ratings", split="train")
+        ratings_dataset = list(tfds.load("movielens/100k-ratings", split="train"))
         user_map = {}
         batch_size = 1000
         counter = 0
         new_users = []
-        max_users = 20
+        max_users = 10
 
         if not existing_admin:
             user_map["admin"] = admin_user.id
 
-        print("Seeding users and ratings from MovieLens 100k (limited to 20 users)...")
+        print("Seeding users and ratings from MovieLens 100k (limited to 10 users)...")
         for rating in ratings_dataset:
             user_id = rating["user_id"].numpy().decode('utf-8')
             movie_id = rating["movie_id"].numpy().decode('utf-8')
@@ -55,10 +62,19 @@ def seed_user():
 
             if user_id not in user_map and len(user_map) < max_users:
                 email = f"user{user_id}@moviemuse.com"
-                existing_user = User.query.filter_by(email=email).first()
+                max_attempts = 5
+                for attempt in range(max_attempts):
+                    username = fake.user_name()
+                    if not User.query.filter_by(username=username).first():
+                        break
+                    if attempt == max_attempts - 1:
+                        username = f"{fake.user_name()}{user_id}"
+                
+                existing_user = User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first()
                 if not existing_user:
                     hashed_password = bcrypt.generate_password_hash("password123").decode('utf-8')
                     new_user = User(
+                        username=username,
                         email=email,
                         password=hashed_password,
                         user_gender=user_gender,
@@ -92,11 +108,33 @@ def seed_user():
                     for new_user in new_users:
                         user_map[new_user.email.split('@')[0][4:]] = new_user.id
                     for new_user in new_users:
+                        # Seed 2 ratings for regular users
+                        for movie_id in ["1", "2"]:
+                            if not Rating.query.filter_by(user_id=new_user.id, movie_id=movie_id).first():
+                                movie = Movie.query.filter_by(id=movie_id).first()
+                                if movie:
+                                    rating = Rating(
+                                        user_id=new_user.id,
+                                        movie_id=movie_id,
+                                        rating=float(fake.random_int(min=1, max=5))
+                                    )
+                                    db.session.add(rating)
+                        # Seed 1 review for movie "1" for regular users
+                        movie = Movie.query.filter_by(id="1").first()
+                        if movie and not Review.query.filter_by(user_id=new_user.id, movie_id="1").first():
+                            review_content = f"{fake.sentence()} I thought the {fake.word()} was {fake.word()} and the {fake.word()} really {fake.word()} the experience."
+                            review = Review(
+                                user_id=new_user.id,
+                                movie_id="1",
+                                content=review_content
+                            )
+                            db.session.add(review)
+                        # Seed watchlist for regular users
                         if not Watchlist.query.filter_by(user_id=new_user.id, title="My List").first():
                             new_watchlist = Watchlist(
                                 user_id=new_user.id,
                                 title="My List",
-                                movie_ids=[]  # Empty array
+                                movie_ids=[]
                             )
                             db.session.add(new_watchlist)
                     new_users.clear()
@@ -110,6 +148,26 @@ def seed_user():
             for new_user in new_users:
                 user_map[new_user.email.split('@')[0][4:]] = new_user.id
             for new_user in new_users:
+                for movie_id in ["1", "2"]:
+                    if not Rating.query.filter_by(user_id=new_user.id, movie_id=movie_id).first():
+                        movie = Movie.query.filter_by(id=movie_id).first()
+                        if movie:
+                            rating = Rating(
+                                user_id=new_user.id,
+                                movie_id=movie_id,
+                                rating=float(fake.random_int(min=1, max=5))
+                            )
+                            db.session.add(rating)
+                # Seed 1 review for movie "1" for regular users
+                movie = Movie.query.filter_by(id="1").first()
+                if movie and not Review.query.filter_by(user_id=new_user.id, movie_id="1").first():
+                    review_content = f"{fake.sentence()} I thought the {fake.word()} was {fake.word()} and the {fake.word()} really {fake.word()} the experience."
+                    review = Review(
+                        user_id=new_user.id,
+                        movie_id="1",
+                        content=review_content
+                    )
+                    db.session.add(review)
                 if not Watchlist.query.filter_by(user_id=new_user.id, title="My List").first():
                     new_watchlist = Watchlist(
                         user_id=new_user.id,
@@ -120,33 +178,12 @@ def seed_user():
 
         db.session.commit()
 
-        if not Watchlist.query.filter_by(user_id=admin_user.id, title="My List").first():
-            admin_watchlist = Watchlist(
-                user_id=admin_user.id,
-                title="My List",
-                movie_ids=[]
-            )
-            db.session.add(admin_watchlist)
-            db.session.commit()
-            print("Seeded 'My List' for admin.")
-
-        all_users = User.query.all()
-        for user in all_users:
-            if not Watchlist.query.filter_by(user_id=user.id, title="My List").first():
-                new_watchlist = Watchlist(
-                    user_id=user.id,
-                    title="My List",
-                    movie_ids=[]
-                )
-                db.session.add(new_watchlist)
-
-        db.session.commit()
-
+        # No watchlist, ratings, or reviews seeded for admin
         total_ratings = Rating.query.count()
+        total_reviews = Review.query.count()
         total_watchlists = Watchlist.query.count()
-        print(f"Seeded {len(user_map)} users, {total_ratings} ratings, and {total_watchlists} watchlists successfully.")
+        print(f"Seeded {len(user_map)} users, {total_ratings} ratings, {total_reviews} reviews, and {total_watchlists} watchlists successfully.")
 
 if __name__ == "__main__":
     print("Starting User Seeding...")
     seed_user()
-    print("User Seeding Complete.")

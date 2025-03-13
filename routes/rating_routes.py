@@ -1,35 +1,32 @@
+# routes/rating.py
 from flask import Blueprint, request, jsonify
 from models.rating import Rating
 from models.movie import Movie
 from models.user import User
 from extensions import db
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 rating_bp = Blueprint('rating_bp', __name__)
 
 @rating_bp.route('', methods=['POST'])
+@jwt_required()
 def add_rating():
-    """Allow a user to rate a movie, storing the rating with a unique ID."""
-    print(f"Request method: {request.method}")
-    print(f"Request headers: {request.headers}")
-    print(f"Request body: {request.get_data(as_text=True)}")
-
+    user_id = get_jwt_identity()
     json_data = request.get_json()
-    if json_data is None or 'user_id' not in json_data or 'movie_id' not in json_data or 'rating' not in json_data:
-        return jsonify({'error': 'user_id, movie_id, and rating are required'}), 400
+    if json_data is None or 'movie_id' not in json_data or 'rating' not in json_data:
+        return jsonify({'error': 'movie_id and rating are required'}), 400
 
-    user_id = json_data['user_id']
     movie_id = json_data['movie_id']
     rating = json_data['rating']
 
     try:
-        user_id = int(user_id)
         rating = float(rating)
         if not (1.0 <= rating <= 5.0):
             return jsonify({'error': 'Rating must be between 1.0 and 5.0'}), 400
     except ValueError:
-        return jsonify({'error': 'user_id must be an integer, rating must be a number'}), 400
+        return jsonify({'error': 'rating must be a number'}), 400
 
-    user = User.query.get(user_id)
+    user = User.query.get(int(user_id))
     movie = Movie.query.get(movie_id)
     if not user:
         return jsonify({'error': f'User with ID {user_id} not found'}), 404
@@ -47,32 +44,19 @@ def add_rating():
             action = "added"
 
         db.session.commit()
-        print(f"Rating {action}: User {user_id}, Movie {movie_id}, Rating {rating}")
         return jsonify({
             'message': f'Successfully {action} rating for {movie.movie_title} with {rating}',
             'id': existing_rating.id if existing_rating else new_rating.id
         }), 200
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding rating: {str(e)}")
         return jsonify({'error': f'Failed to add rating: {str(e)}'}), 500
 
 @rating_bp.route('', methods=['GET'])
+@jwt_required()
 def get_user_ratings():
-    print(f"Request method: {request.method}")
-    print(f"Request headers: {request.headers}")
-    print(f"Request query params: {request.args}")
-
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'user_id is required in query parameter'}), 400
-
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'error': 'user_id must be an integer'}), 400
-
-    user = User.query.get(user_id)
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
     if not user:
         return jsonify({'error': f'User with ID {user_id} not found'}), 404
 
@@ -84,16 +68,12 @@ def get_user_ratings():
                 "title": rating_movie.movie_title,
                 "rating": float(rating.rating),
                 "genres": rating_movie.movie_genres,
-                "movie_id": rating.movie_id
+                "movie_id": rating.movie_id,
+                'created_at': rating.created_at.isoformat()
             }
             for rating in ratings
             if (rating_movie := Movie.query.get(rating.movie_id)) 
         ]
-
-        print(f"User {user_id} rated movies: {rated_movies_list}")
-        return jsonify({
-            'rated_movies': rated_movies_list
-        }), 200
+        return jsonify({'rated_movies': rated_movies_list}), 200
     except Exception as e:
-        print(f"Error fetching ratings: {str(e)}")
         return jsonify({'error': f'Failed to fetch ratings: {str(e)}'}), 500

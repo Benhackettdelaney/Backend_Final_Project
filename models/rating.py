@@ -6,6 +6,7 @@ class Rating(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     movie_id = db.Column(db.String(10), db.ForeignKey('movie.id'), nullable=False)
     rating = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     user = db.relationship('User', backref='rating_entries')
     movie = db.relationship('Movie', backref='rating_entries')
