@@ -1,6 +1,6 @@
 # routes/review.py
 from flask import Blueprint, request, jsonify
-from models.reviews import Review
+from models.reviews import Review  
 from models.user import User
 from models.movie import Movie
 from extensions import db
@@ -25,72 +25,81 @@ def create_review():
             user_id=user_id,
             movie_id=data['movie_id'],
             content=data['content']
+            # created_at is set automatically by default=db.func.current_timestamp()
         )
         db.session.add(new_review)
         db.session.commit()
-        return jsonify({'message': 'Review created successfully', 'id': new_review.id}), 201
+        return jsonify({
+            'message': 'Review created successfully',
+            'id': new_review.id,
+            'user_id': new_review.user_id,
+            'username': new_review.user.username,
+            'movie_id': new_review.movie_id,
+            'movie_title': new_review.movie.movie_title,
+            'content': new_review.content,
+            'created_at': new_review.created_at.isoformat()
+        }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to create review: {str(e)}'}), 500
 
-@review_bp.route('', methods=['GET'])
-def get_all_reviews():
-    reviews = Review.query.all()
-    return jsonify([{
-        'id': review.id,
-        'user_id': review.user_id,
-        'username': review.user.username,
-        'movie_id': review.movie_id,
-        'movie_title': review.movie.movie_title,
-        'content': review.content,
-        'created_at': review.created_at.isoformat()
-    } for review in reviews]), 200
+@review_bp.route('/movie/<movie_id>', methods=['GET'])
+@jwt_required()  # Require auth, but all users can see all reviews for a movie
+def get_movie_reviews(movie_id):
+    if not Movie.query.get(movie_id):
+        return jsonify({'error': 'Movie not found'}), 404
+    
+    try:
+        reviews = Review.query.filter_by(movie_id=movie_id).all()
+        review_list = [{
+            'id': review.id,
+            'user_id': review.user_id,
+            'username': review.user.username,
+            'movie_id': review.movie_id,
+            'movie_title': review.movie.movie_title,
+            'content': review.content,
+            'created_at': review.created_at.isoformat()
+        } for review in reviews]
+        return jsonify({'reviews': review_list}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
 
-@review_bp.route('/user', methods=['GET'])
-@jwt_required()
-def get_user_reviews():
-    user_id = get_jwt_identity()
-    reviews = Review.query.filter_by(user_id=user_id).all()
-    return jsonify([{
-        'id': review.id,
-        'movie_id': review.movie_id,
-        'movie_title': review.movie.movie_title,
-        'content': review.content,
-        'created_at': review.created_at.isoformat()
-    } for review in reviews]), 200
-
-@review_bp.route('/update/<id>', methods=['PUT'])
+@review_bp.route('/update/<int:id>', methods=['PUT'])  # Changed <id> to <int:id> for consistency
 @jwt_required()
 def update_review(id):
     user_id = get_jwt_identity()
-    review = Review.query.get_or_404(id)
-    if review.user_id != int(user_id) and not User.query.get(user_id).is_admin():
-        return jsonify({'error': 'Unauthorized'}), 403
-    
     data = request.get_json()
     if not data or 'content' not in data:
         return jsonify({'error': 'Missing content'}), 400
     
+    review = Review.query.get_or_404(id)
+    if review.user_id != int(user_id):  # Only the review owner can edit
+        return jsonify({'error': 'You can only edit your own reviews'}), 403
+
     try:
         review.content = data['content']
         db.session.commit()
-        return jsonify({'message': 'Review updated successfully'}), 200
+        return jsonify({
+            'message': 'Review updated successfully',
+            'id': review.id,
+            'content': review.content
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to update review: {str(e)}'}), 500
 
-@review_bp.route('/delete/<id>', methods=['DELETE'])
+@review_bp.route('/delete/<int:id>', methods=['DELETE'])  # Changed <id> to <int:id> for consistency
 @jwt_required()
 def delete_review(id):
     user_id = get_jwt_identity()
     review = Review.query.get_or_404(id)
-    if review.user_id != int(user_id) and not User.query.get(user_id).is_admin():
-        return jsonify({'error': 'Unauthorized'}), 403
-    
+    if review.user_id != int(user_id):  
+        return jsonify({'error': 'You can only delete your own reviews'}), 403
+
     try:
         db.session.delete(review)
         db.session.commit()
-        return jsonify({'message': 'Review deleted successfully'}), 200
+        return jsonify({'message': 'Review deleted successfully', 'id': id}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to delete review: {str(e)}'}), 500

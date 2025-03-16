@@ -1,4 +1,3 @@
-# models/movie.py
 from extensions import db
 
 class Movie(db.Model):

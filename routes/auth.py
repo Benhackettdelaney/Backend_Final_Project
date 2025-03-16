@@ -1,4 +1,4 @@
-# routes/auth.py
+# routes/auth.py (unchanged)
 from flask import Blueprint, request, jsonify
 from extensions import db
 from models.user import User
@@ -13,8 +13,8 @@ def admin_required(f):
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        user_id = get_jwt_identity()  # Returns string due to str() in create_access_token
-        user = User.query.get(int(user_id))  # Convert to int for DB query
+        user_id = get_jwt_identity()
+        user = User.query.get(int(user_id))
         if not user or not user.is_admin():
             return jsonify({"error": "Admin access required"}), 403
         return f(*args, **kwargs)
@@ -64,13 +64,13 @@ def register():
     try:
         db.session.add(new_user)
         db.session.commit()
-        access_token = create_access_token(identity=str(new_user.id))  # Ensure string
+        access_token = create_access_token(identity=str(new_user.id))
         response = jsonify({
             "message": "Registration successful",
             "user_id": str(new_user.id),
-            "access_token": access_token  # Return token in body
+            "access_token": access_token
         })
-        set_access_cookies(response, access_token)  # Still set cookie (optional)
+        set_access_cookies(response, access_token)
         return response, 201
     except Exception as e:
         db.session.rollback()
@@ -91,7 +91,7 @@ def login():
     user = User.query.filter_by(email=email).first()
     if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
-        print(f"Generated token for user {user.id}: {access_token}")  
+        print(f"Generated token for user {user.id}: {access_token}")
         response = jsonify({
             "message": "Login successful",
             "user_id": str(user.id),
@@ -118,6 +118,11 @@ def current_user():
             "user_id": user_id,
             "email": user.email,
             "username": user.username,
-            "role": user.role
+            "user_gender": user.user_gender,
+            "raw_user_age": user.raw_user_age,
+            "user_occupation_label": user.user_occupation_label,
+            "user_rating": user.user_rating,
+            "role": user.role,
+            "created_at": user.created_at.isoformat() 
         }), 200
     return jsonify({"error": "User not found"}), 404
