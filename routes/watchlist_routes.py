@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from models.movie import Movie
 from models.user import User
@@ -32,10 +31,13 @@ def create_watchlist():
             Movie.query.get_or_404(movie_id)
             movie_ids.append(movie_id)
         
+        is_public = data.get('is_public', False)
+
         watchlist = Watchlist(
             user_id=user_id,
             title=data['title'],
-            movie_ids=movie_ids
+            movie_ids=movie_ids,
+            is_public=is_public
         )
         db.session.add(watchlist)
         db.session.commit()
@@ -56,7 +58,8 @@ def get_user_watchlist():
         "id": item.id,
         "user_id": item.user_id,
         "title": item.title,
-        "movie_ids": item.movie_ids
+        "movie_ids": item.movie_ids,
+        "is_public": item.is_public
     } for item in watchlists]), 200
 
 @watchlist_bp.route('/<int:id>', methods=['GET'])
@@ -75,7 +78,8 @@ def get_watchlist_item(id):
             "id": watchlist.id,
             "user_id": watchlist.user_id,
             "title": watchlist.title,
-            "movie_ids": watchlist.movie_ids
+            "movie_ids": watchlist.movie_ids,
+            "is_public": watchlist.is_public
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to fetch watchlist item: {str(e)}'}), 500
@@ -88,8 +92,8 @@ def update_watchlist_entry(id):
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
     data = request.json
-    if not data or ('title' not in data and 'movie_id' not in data and 'movie_ids' not in data and 'remove_movie_id' not in data):
-        return jsonify({'error': 'Missing title, movie_id(s), or remove_movie_id'}), 400
+    if not data or ('title' not in data and 'movie_id' not in data and 'movie_ids' not in data and 'remove_movie_id' not in data and 'is_public' not in data):
+        return jsonify({'error': 'Missing title, movie_id(s), remove_movie_id, or is_public'}), 400
     
     if not User.query.get(int(user_id)):
         return jsonify({'error': 'Invalid user_id'}), 400
@@ -101,23 +105,25 @@ def update_watchlist_entry(id):
         
         if 'title' in data:
             watchlist.title = data['title']
-        if 'movie_id' in data:  
+        if 'movie_id' in data:
             movie_id = data['movie_id']
             Movie.query.get_or_404(movie_id)
             if movie_id in watchlist.movie_ids:
                 return jsonify({'error': 'Movie already in this watchlist'}), 409
             watchlist.movie_ids = watchlist.movie_ids + [movie_id]
-        if 'movie_ids' in data:  
+        if 'movie_ids' in data:
             movie_ids = data['movie_ids']
             for movie_id in movie_ids:
                 Movie.query.get_or_404(movie_id)
                 if movie_id not in watchlist.movie_ids:
                     watchlist.movie_ids = watchlist.movie_ids + [movie_id]
-        if 'remove_movie_id' in data: 
+        if 'remove_movie_id' in data:
             remove_movie_id = data['remove_movie_id']
             if remove_movie_id not in watchlist.movie_ids:
                 return jsonify({'error': 'Movie not found in this watchlist'}), 404
             watchlist.movie_ids = [id for id in watchlist.movie_ids if id != remove_movie_id]
+        if 'is_public' in data:
+            watchlist.is_public = data['is_public']
         
         db.session.commit()
         return jsonify({'message': 'Watchlist updated successfully'}), 200
@@ -143,3 +149,47 @@ def remove_from_watchlist(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to remove watchlist: {str(e)}'}), 500
+
+@watchlist_bp.route('/public', methods=['GET'])
+def get_public_watchlists():
+    try:
+        public_watchlists = Watchlist.query.filter_by(is_public=True).all()
+        return jsonify([{
+            "id": item.id,
+            "user_id": item.user_id,
+            "title": item.title,
+            "movie_ids": item.movie_ids,
+            "is_public": item.is_public,
+            "username": item.user.username
+        } for item in public_watchlists]), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch public watchlists: {str(e)}'}), 500
+
+@watchlist_bp.route('/public/<int:id>', methods=['GET'])  
+def get_public_watchlist(id):
+    try:
+        watchlist = Watchlist.query.filter_by(id=id, is_public=True).first()
+        if not watchlist:
+            return jsonify({'error': 'Public watchlist not found'}), 404
+        
+        movie_details = []
+        for movie_id in watchlist.movie_ids:
+            movie = Movie.query.get(movie_id)
+            if movie:
+                movie_details.append({
+                    "id": movie.id,
+                    "title": movie.movie_title,
+                    "genres": movie.movie_genres
+                })
+
+        return jsonify({
+            "id": watchlist.id,
+            "user_id": watchlist.user_id,
+            "title": watchlist.title,
+            "movie_ids": watchlist.movie_ids,
+            "movies": movie_details,  
+            "is_public": watchlist.is_public,
+            "username": watchlist.user.username
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch public watchlist: {str(e)}'}), 500

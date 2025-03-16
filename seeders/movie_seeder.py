@@ -18,7 +18,7 @@ genre_map = {
     15: "Sci-Fi", 16: "Thriller", 17: "War", 18: "Western"
 }
 
-def seed_movie():
+def seed_movies():
     with app.app_context():
         dataset = list(tfds.load("movielens/100k-movies", split="train"))
         print("Seeding movies from MovieLens 100k (all movies)...")
@@ -41,7 +41,7 @@ def seed_movie():
             genre_ids = movie["movie_genres"].numpy().tolist()
             valid_genre_ids = [gid for gid in genre_ids if gid in genre_map]
             movie_genres = ", ".join(genre_map[gid] for gid in valid_genre_ids) or "Unknown"
-            description = fake.paragraph(nb_sentences=2)  # Seed description with 2-sentence paragraph
+            description = fake.paragraph(nb_sentences=2)
             
             existing_movie = Movie.query.filter_by(id=movie_id).first()
             if not existing_movie:
@@ -69,11 +69,11 @@ def seed_movie():
             print(f"Seeded {total_movies} movies successfully.")
             sample_movie = Movie.query.first()
             if sample_movie:
-                print(f"Sample: ID={sample_movie.id}, Title={sample_movie.movie_title}, Genres={sample_movie.movie_genres}, Description={sample_movie.description}")
+                print(f"Sample Movie: ID={sample_movie.id}, Title={sample_movie.movie_title}, Genres={sample_movie.movie_genres}, Description={sample_movie.description}")
         except Exception as e:
-            print(f"Final commit failed: {e}")
+            print(f"Final movie commit failed: {e}")
             db.session.rollback()
 
 if __name__ == "__main__":
     print("Starting Movie Seeding...")
-    seed_movie()
+    seed_movies()
