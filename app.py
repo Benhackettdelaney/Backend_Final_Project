@@ -15,7 +15,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'your-secret-key-here'
 app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key-here'
-app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']  # Allow both cookies and Bearer tokens
+app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']  
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
 

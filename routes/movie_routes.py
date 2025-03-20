@@ -1,8 +1,8 @@
-# routes/movie.py
 from flask import Blueprint, request, jsonify
 from models.movie import Movie
 from models.watchlist import Watchlist
 from models.rating import Rating
+from models.reviews import Review  
 from models.user import User
 from extensions import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -111,17 +111,18 @@ def update_movie(id):
 def delete_movie(id):
     movie = Movie.query.get_or_404(id)
     try:
-
         Rating.query.filter_by(movie_id=id).delete()
 
-        watchlists = Watchlist.query.all()  
+        Review.query.filter_by(movie_id=id).delete()
+
+        watchlists = Watchlist.query.all()
         for watchlist in watchlists:
             if id in watchlist.movie_ids:
                 watchlist.movie_ids = [mid for mid in watchlist.movie_ids if mid != id]
 
         db.session.delete(movie)
         db.session.commit()
-        return jsonify({'message': 'Movie deleted and removed from watchlists successfully'}), 200
+        return jsonify({'message': 'Movie, ratings, reviews, and watchlist entries deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to delete movie: {str(e)}'}), 500

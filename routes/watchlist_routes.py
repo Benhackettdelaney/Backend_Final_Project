@@ -28,7 +28,9 @@ def create_watchlist():
         movie_ids = []
         if 'movie_id' in data and data['movie_id']:
             movie_id = data['movie_id']
-            Movie.query.get_or_404(movie_id)
+            movie = Movie.query.get(movie_id)  # Use get instead of get_or_404
+            if not movie:
+                return jsonify({'error': 'Invalid movie ID'}), 400  # Custom message
             movie_ids.append(movie_id)
         
         is_public = data.get('is_public', False)
@@ -46,6 +48,7 @@ def create_watchlist():
         db.session.rollback()
         return jsonify({'error': f'Failed to create watchlist: {str(e)}'}), 500
 
+# ... rest of your routes remain unchanged
 @watchlist_bp.route('', methods=['GET'])
 @jwt_required()
 def get_user_watchlist():
