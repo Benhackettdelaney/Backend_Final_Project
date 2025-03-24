@@ -64,7 +64,9 @@ def get_movies():
         "movie_title": movie.movie_title,
         "movie_genres": movie.movie_genres,
         "description": movie.description,
-        "created_at": movie.created_at.isoformat()
+        "created_at": movie.created_at.isoformat(),
+        "ratings_count": Rating.query.filter_by(movie_id=movie.id).count(),
+        "reviews_count": Review.query.filter_by(movie_id=movie.id).count()
     } for movie in movies]), 200
 
 @movie_bp.route('/<id>', methods=['GET'], endpoint='single_movie')
@@ -112,17 +114,24 @@ def delete_movie(id):
     movie = Movie.query.get_or_404(id)
     try:
         Rating.query.filter_by(movie_id=id).delete()
-
         Review.query.filter_by(movie_id=id).delete()
-
         watchlists = Watchlist.query.all()
         for watchlist in watchlists:
             if id in watchlist.movie_ids:
                 watchlist.movie_ids = [mid for mid in watchlist.movie_ids if mid != id]
-
         db.session.delete(movie)
         db.session.commit()
         return jsonify({'message': 'Movie, ratings, reviews, and watchlist entries deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to delete movie: {str(e)}'}), 500
+
+@movie_bp.route('/<id>/stats', methods=['GET'])
+def movie_stats(id):
+    movie = Movie.query.get_or_404(id)
+    ratings_count = Rating.query.filter_by(movie_id=movie.id).count()
+    reviews_count = Review.query.filter_by(movie_id=movie.id).count()
+    return jsonify({
+        "ratings_count": ratings_count,
+        "reviews_count": reviews_count
+    }), 200

@@ -26,15 +26,17 @@ def register():
     if not data:
         return jsonify({"error": "Request body must be JSON"}), 400
 
-    username = data.get("username")
-    email = data.get("email")
-    password = data.get("password")
-    user_gender = data.get("user_gender")
-    user_occupation_label = data.get("user_occupation_label")
-    raw_user_age = data.get("raw_user_age")
+    required_fields = ["username", "email", "password", "user_gender", "user_occupation_label", "raw_user_age"]
+    missing_fields = [field for field in required_fields if field not in data or data[field] is None]
+    if missing_fields:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
 
-    if not all([username, email, password, user_gender, user_occupation_label, raw_user_age]):
-        return jsonify({"error": "All fields are required"}), 400
+    username = data["username"]
+    email = data["email"]
+    password = data["password"]
+    user_gender = data["user_gender"]
+    user_occupation_label = data["user_occupation_label"]
+    raw_user_age = data["raw_user_age"]
 
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
