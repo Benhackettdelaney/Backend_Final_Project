@@ -1,4 +1,4 @@
-# routes/auth.py (unchanged)
+# routes/auth.py
 from flask import Blueprint, request, jsonify
 from extensions import db
 from models.user import User
@@ -48,8 +48,9 @@ def register():
     except ValueError:
         return jsonify({"error": "user_gender, user_occupation_label, and raw_user_age must be integers"}), 400
 
-    if User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first():
-        return jsonify({"error": "Email or username already registered"}), 400
+    # Check only email uniqueness, not username
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already registered"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
     new_user = User(
