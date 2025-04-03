@@ -6,7 +6,6 @@ from models.movie import Movie
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
-# Load the ranking model 
 try:
     ranking_model = tf.saved_model.load("ml_models/ranking_model")
     print("Ranking model loaded successfully")
@@ -76,7 +75,7 @@ def get_top_ranked_movies():
 
         result = [
             {
-                "id": movie.id,  # Add movie ID
+                "id": movie.id,  
                 "title": movie.movie_title,
                 "rating": float(rating),
                 "genres": movie.movie_genres

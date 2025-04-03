@@ -25,7 +25,7 @@ def create_review():
             user_id=user_id,
             movie_id=data['movie_id'],
             content=data['content']
-            # created_at is set automatically by default=db.func.current_timestamp()
+            
         )
         db.session.add(new_review)
         db.session.commit()
@@ -44,7 +44,7 @@ def create_review():
         return jsonify({'error': f'Failed to create review: {str(e)}'}), 500
 
 @review_bp.route('/movie/<movie_id>', methods=['GET'])
-@jwt_required()  # Require auth, but all users can see all reviews for a movie
+@jwt_required()  
 def get_movie_reviews(movie_id):
     if not Movie.query.get(movie_id):
         return jsonify({'error': 'Movie not found'}), 404
@@ -64,7 +64,7 @@ def get_movie_reviews(movie_id):
     except Exception as e:
         return jsonify({'error': f'Failed to fetch reviews: {str(e)}'}), 500
 
-@review_bp.route('/update/<int:id>', methods=['PUT'])  # Changed <id> to <int:id> for consistency
+@review_bp.route('/update/<int:id>', methods=['PUT'])  
 @jwt_required()
 def update_review(id):
     user_id = get_jwt_identity()
@@ -73,7 +73,7 @@ def update_review(id):
         return jsonify({'error': 'Missing content'}), 400
     
     review = Review.query.get_or_404(id)
-    if review.user_id != int(user_id):  # Only the review owner can edit
+    if review.user_id != int(user_id):  
         return jsonify({'error': 'You can only edit your own reviews'}), 403
 
     try:
@@ -88,7 +88,7 @@ def update_review(id):
         db.session.rollback()
         return jsonify({'error': f'Failed to update review: {str(e)}'}), 500
 
-@review_bp.route('/delete/<int:id>', methods=['DELETE'])  # Changed <id> to <int:id> for consistency
+@review_bp.route('/delete/<int:id>', methods=['DELETE'])  
 @jwt_required()
 def delete_review(id):
     user_id = get_jwt_identity()

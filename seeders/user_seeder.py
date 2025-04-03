@@ -8,7 +8,7 @@ from models.user import User
 from models.movie import Movie
 from models.rating import Rating
 from models.reviews import Review
-from models.watchlist import Watchlist  # Ensure Watchlist model is imported
+from models.watchlist import Watchlist  
 from flask_bcrypt import Bcrypt
 from faker import Faker
 import random
@@ -20,7 +20,6 @@ fake = Faker()
 
 def seed_user():
     with app.app_context():
-        # Seed the admin user
         admin_email = "admin@moviemuse.com"
         admin_password = "adminpassword"
         
@@ -43,7 +42,6 @@ def seed_user():
         else:
             admin_user = existing_admin
 
-        # Load all movies from the database
         all_movies = Movie.query.all()
         if not all_movies:
             print("No movies found in the database. Please seed movies first.")
@@ -52,7 +50,6 @@ def seed_user():
         total_movies = len(movie_ids)
         print(f"Found {total_movies} movies in the database.")
 
-        # Seed 10 regular users
         max_users = 10
         user_map = {}
         new_users = []
@@ -62,7 +59,6 @@ def seed_user():
 
         print(f"Seeding {max_users} users with 1 review and 1 rating per movie, plus private and public watchlists...")
 
-        # Use MovieLens data for initial user info
         ratings_dataset = list(tfds.load("movielens/100k-ratings", split="train"))
         counter = 0
 
@@ -97,29 +93,25 @@ def seed_user():
                     )
                     db.session.add(new_user)
                     new_users.append(new_user)
-                    user_map[user_id] = None  # Temporarily None until committed
+                    user_map[user_id] = None  
 
             counter += 1
             if counter >= max_users:
                 break
 
-        # Commit the new users and assign their IDs
         if new_users:
             db.session.commit()
             for new_user in new_users:
                 user_map[new_user.email.split('@')[0][4:]] = new_user.id
             print(f"Seeded {len(new_users)} new users.")
 
-        # Prepare user IDs for random assignment
-        user_ids = [user_id for user_id_str, user_id in user_map.items() if user_id]  # Exclude None values
+        user_ids = [user_id for user_id_str, user_id in user_map.items() if user_id]  
         counter = 0
-        batch_size = 1000  # Commit in batches
+        batch_size = 1000  
 
-        # Seed 1 review and 1 rating per movie
         for movie_id in movie_ids:
             movie = Movie.query.get(movie_id)
             if movie:
-                # Seed 1 review with a random user
                 reviewer_id = random.choice(user_ids)
                 if not Review.query.filter_by(user_id=reviewer_id, movie_id=movie_id).first():
                     review_content = f"{fake.sentence()} The {fake.word()} was {fake.word()} and the {fake.word()} really {fake.word()} the experience."
@@ -131,7 +123,6 @@ def seed_user():
                     db.session.add(new_review)
                     counter += 1
 
-                # Seed 1 rating with a random user
                 rater_id = random.choice(user_ids)
                 if not Rating.query.filter_by(user_id=rater_id, movie_id=movie_id).first():
                     rating_value = float(fake.random_int(min=1, max=5))
@@ -143,16 +134,13 @@ def seed_user():
                     db.session.add(new_rating)
                     counter += 1
 
-            # Commit in batches
             if counter % batch_size == 0:
                 db.session.commit()
                 print(f"Committed {counter} ratings and reviews...")
 
-        # Seed watchlists for each user
         for user_id in user_ids:
-            # Seed 1 private watchlist
             if not Watchlist.query.filter_by(user_id=user_id, title="My Private List").first():
-                private_movie_ids = random.sample(movie_ids, min(3, len(movie_ids)))  # 3 random movies
+                private_movie_ids = random.sample(movie_ids, min(3, len(movie_ids)))  
                 new_private_watchlist = Watchlist(
                     user_id=user_id,
                     title="My Private List",
@@ -162,9 +150,8 @@ def seed_user():
                 db.session.add(new_private_watchlist)
                 counter += 1
 
-            # Seed 1 public watchlist
             if not Watchlist.query.filter_by(user_id=user_id, title="My Public Favorites").first():
-                public_movie_ids = random.sample(movie_ids, min(4, len(movie_ids)))  # 4 random movies
+                public_movie_ids = random.sample(movie_ids, min(4, len(movie_ids))) 
                 new_public_watchlist = Watchlist(
                     user_id=user_id,
                     title="My Public Favorites",
@@ -174,7 +161,6 @@ def seed_user():
                 db.session.add(new_public_watchlist)
                 counter += 1
 
-        # Final commit for remaining records
         db.session.commit()
 
         total_ratings = Rating.query.count()

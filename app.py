@@ -8,6 +8,7 @@ from routes.watchlist_routes import watchlist_bp
 from routes.rating_routes import rating_bp
 from routes.auth import auth_bp 
 from routes.reviews_routes import review_bp
+from routes.actor_routes import actor_bp
 from extensions import db, migrate
 from config.config import Config
 
@@ -28,13 +29,13 @@ app.logger.debug("Starting Flask app")
 db.init_app(app)
 migrate.init_app(app, db)
 
-# Register blueprints
 app.register_blueprint(movie_bp, url_prefix='/movies')
 app.register_blueprint(ranking_bp, url_prefix='/ranking')
 app.register_blueprint(watchlist_bp, url_prefix='/watchlists')
 app.register_blueprint(rating_bp, url_prefix='/ratings')
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(review_bp, url_prefix='/reviews')
+app.register_blueprint(actor_bp, url_prefix='/actors')
 
 @app.route('/', methods=['GET'])
 def hello_world():

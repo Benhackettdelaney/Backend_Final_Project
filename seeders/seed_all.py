@@ -4,20 +4,21 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-print("Starting seed_all.py...")  # Debug: Confirm script starts
+print("Starting seed_all.py...")  
 
 try:
     from movie_seeder import seed_movies
     from user_seeder import seed_user
+    from actor_seeder import seed_actors  
     from app import app
     from extensions import db
-    print("Imports successful.")  # Debug: Confirm imports work
+    print("Imports successful.")  
 except ImportError as e:
     print(f"Import error: {e}")
     sys.exit(1)
 
 def seed_all():
-    print("Entering seed_all function...")  # Debug: Confirm function entry
+    print("Entering seed_all function...") 
     try:
         with app.app_context():
             print("Dropping all tables...")
@@ -29,8 +30,9 @@ def seed_all():
             print("Database tables created or verified.")
             
             print("Starting Seeding...")
-            seed_movies()
-            seed_user()
+            seed_actors() 
+            seed_movies()  
+            seed_user()    
             print("Seeding completed successfully.")
     except Exception as e:
         print(f"Error during seeding: {e}")

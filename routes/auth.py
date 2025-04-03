@@ -48,7 +48,6 @@ def register():
     except ValueError:
         return jsonify({"error": "user_gender, user_occupation_label, and raw_user_age must be integers"}), 400
 
-    # Check only email uniqueness, not username
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered"}), 400
 

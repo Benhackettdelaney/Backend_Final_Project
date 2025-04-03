@@ -17,7 +17,7 @@ def movie_to_features(movie, user_id=None):
     genre_vector = genre_to_vector(movie.movie_genres)
     rating = db.session.query(ratings_table.c.rating).filter_by(
         movie_id=movie.id, user_id=user_id
-    ).scalar() or 0.0 if user_id else 0.0  # Default to 0.0 if no rating or no user_id
+    ).scalar() or 0.0 if user_id else 0.0  
     
     return np.array(genre_vector + [rating])
 

@@ -1,3 +1,4 @@
+#this one
 from flask import Blueprint, request, jsonify
 from models.rating import Rating
 from models.movie import Movie
@@ -6,7 +7,6 @@ from extensions import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import logging
 
-# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
 rating_bp = Blueprint('rating_bp', __name__)
@@ -104,7 +104,7 @@ def update_rating(id):
         logging.debug(f"Rating {id} not found")
         return jsonify({'error': f'Rating with ID {id} not found'}), 404
     logging.debug(f"Rating user_id: {rating.user_id}")
-    if str(rating.user_id) != user_id:  # Fixed type mismatch by converting to string
+    if str(rating.user_id) != user_id:  
         logging.debug(f"User {user_id} attempted to update rating {id} owned by {rating.user_id}")
         return jsonify({'error': 'You can only edit your own ratings'}), 403
 

@@ -5,7 +5,9 @@ import tensorflow_datasets as tfds
 from extensions import db
 from app import app
 from models.movie import Movie
+from models.actor import Actor  
 from faker import Faker
+import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -21,11 +23,16 @@ genre_map = {
 def seed_movies():
     with app.app_context():
         dataset = list(tfds.load("movielens/100k-movies", split="train"))
-        print("Seeding movies from MovieLens 100k (all movies)...")
+        print("Seeding movies from MovieLens 100k (all movies with 4 actors each)...")
         
         batch_size = 100
         counter = 0
         
+        all_actors = Actor.query.all()
+        if len(all_actors) < 4:
+            print("Error: Need at least 4 actors in the database. Run actor_seeder.py first.")
+            return
+
         try:
             db.session.query(Movie).delete()
             db.session.commit()
@@ -45,12 +52,14 @@ def seed_movies():
             
             existing_movie = Movie.query.filter_by(id=movie_id).first()
             if not existing_movie:
+                selected_actors = random.sample(all_actors, 4)
                 new_movie = Movie(
                     id=movie_id,
                     movie_title=movie_title,
                     movie_genres=movie_genres,
                     description=description
                 )
+                new_movie.actors.extend(selected_actors)  
                 db.session.add(new_movie)
             
             counter += 1
@@ -66,10 +75,12 @@ def seed_movies():
         try:
             db.session.commit()
             total_movies = Movie.query.count()
-            print(f"Seeded {total_movies} movies successfully.")
+            total_actors = Actor.query.count()
+            print(f"Seeded {total_movies} movies with actors from a pool of {total_actors} actors successfully.")
             sample_movie = Movie.query.first()
             if sample_movie:
-                print(f"Sample Movie: ID={sample_movie.id}, Title={sample_movie.movie_title}, Genres={sample_movie.movie_genres}, Description={sample_movie.description}")
+                print(f"Sample Movie: ID={sample_movie.id}, Title={sample_movie.movie_title}, Genres={sample_movie.movie_genres}, "
+                      f"Description={sample_movie.description}, Actors={[actor.name for actor in sample_movie.actors.all()]}")
         except Exception as e:
             print(f"Final movie commit failed: {e}")
             db.session.rollback()
