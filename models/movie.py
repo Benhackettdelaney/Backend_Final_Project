@@ -7,6 +7,7 @@ class Movie(db.Model):
     movie_title = db.Column(db.String(100), nullable=False)
     movie_genres = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500), nullable=True)
+    image_url = db.Column(db.String(200), nullable=True)  
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     actors = db.relationship('Actor', secondary=movie_actors, back_populates='movies', lazy='dynamic')
 
