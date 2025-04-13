@@ -1,16 +1,28 @@
 # seeders/actor_seeder.py
 import sys
 import os
+from flask import Flask
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from extensions import db
-from app import app
 from models.actor import Actor
 from faker import Faker
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 fake = Faker()
 
 def seed_actors():
+    # Create a Flask app for the seeder
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///databasemovie.db'  # Matches config.py
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Initialize the database
+    db.init_app(app)
+
     with app.app_context():
         print("Seeding actors with fake data...")
 

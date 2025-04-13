@@ -2,8 +2,14 @@
 import sys
 import os
 import tensorflow_datasets as tfds
+from flask import Flask
+
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from extensions import db
-from app import app
 from models.user import User
 from models.movie import Movie
 from models.rating import Rating
@@ -13,13 +19,20 @@ from flask_bcrypt import Bcrypt
 from faker import Faker
 import random
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 bcrypt = Bcrypt()
 fake = Faker()
 
 def seed_user():
+    # Create a Flask app for the seeder
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///databasemovie.db'  # Matches config.py
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Initialize the database
+    db.init_app(app)
+
     with app.app_context():
+        print("Seeding users...")
         admin_email = "admin@moviemuse.com"
         admin_password = "adminpassword"
         

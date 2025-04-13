@@ -1,24 +1,36 @@
 # seeders/seed_all.py
 import sys
 import os
+from flask import Flask
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-print("Starting seed_all.py...")  
+from extensions import db
+
+print("Starting seed_all.py...")
 
 try:
-    from movie_seeder import seed_movies
-    from user_seeder import seed_user
-    from actor_seeder import seed_actors  
-    from app import app
-    from extensions import db
-    print("Imports successful.")  
+    from seeders.movie_seeder import seed_movies
+    from seeders.user_seeder import seed_user
+    from seeders.actor_seeder import seed_actors
+    print("Imports successful.")
 except ImportError as e:
     print(f"Import error: {e}")
     sys.exit(1)
 
 def seed_all():
-    print("Entering seed_all function...") 
+    print("Entering seed_all function...")
+    # Create a Flask app for seeding
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///databasemovie.db'  # Matches config.py
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Initialize the database
+    db.init_app(app)
+
     try:
         with app.app_context():
             print("Dropping all tables...")
@@ -30,9 +42,9 @@ def seed_all():
             print("Database tables created or verified.")
             
             print("Starting Seeding...")
-            seed_actors() 
-            seed_movies()  
-            seed_user()    
+            seed_actors()
+            seed_movies()
+            seed_user()
             print("Seeding completed successfully.")
     except Exception as e:
         print(f"Error during seeding: {e}")

@@ -8,8 +8,15 @@ from models.user import User
 from models.actor import Actor  
 from extensions import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 movie_bp = Blueprint('movie_bp', __name__)
+
+AVAILABLE_IMAGES = ['bloodborne1.jpg']
+IMAGE_FOLDER = 'static/movies'
 
 def admin_required(f):
     @jwt_required()
@@ -24,16 +31,14 @@ def admin_required(f):
 @movie_bp.route('/create', methods=['POST'], endpoint='create_movie')
 @admin_required
 def create_movie():
-    print(f"Request headers: {request.headers}")
-    print(f"Request data: {request.data}")
+    logging.debug(f"Create movie request: {request.json}")
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
-    
+
     data = request.json
-    print(f"Parsed JSON: {data}")
-    if not data or 'id' not in data or 'movie_title' not in data or 'movie_genres' not in data or 'actor_id' not in data:
-        return jsonify({'error': 'Missing id, movie_title, movie_genres, or actor_id'}), 400
-    
+    if not data or 'id' not in data or 'movie_title' not in data or 'movie_genres' not in data or 'actor_id' not in data or 'image' not in data:
+        return jsonify({'error': 'Missing id, movie_title, movie_genres, actor_id, or image'}), 400
+
     if Movie.query.get(data['id']):
         return jsonify({'error': f"Movie with ID {data['id']} already exists"}), 409
 
@@ -41,60 +46,83 @@ def create_movie():
     if not actor:
         return jsonify({'error': f"Actor with ID {data['actor_id']} not found"}), 404
 
+    image_filename = data['image']
+    if image_filename not in AVAILABLE_IMAGES:
+        return jsonify({'error': f"Image must be one of {', '.join(AVAILABLE_IMAGES)}"}), 400
+    image_path = os.path.join(IMAGE_FOLDER, image_filename)
+    if not os.path.isfile(image_path):
+        return jsonify({'error': f"Image {image_filename} not found in {IMAGE_FOLDER}"}), 404
+    image_url = f"movies/{image_filename}"
+
     try:
         new_movie = Movie(
             id=data['id'],
             movie_title=data['movie_title'],
             movie_genres=data['movie_genres'],
-            description=data.get('description')
+            description=data.get('description'),
+            image_url=image_url
         )
-        new_movie.actors.append(actor)  
+        new_movie.actors.append(actor)
         db.session.add(new_movie)
         db.session.commit()
-        return jsonify({
+        response = {
             'message': 'Movie created successfully',
             'id': new_movie.id,
             'movie_title': new_movie.movie_title,
             'movie_genres': new_movie.movie_genres,
             'description': new_movie.description,
+            'image_url': f"/static/{new_movie.image_url}",
             'created_at': new_movie.created_at.isoformat(),
             'actors': [{'id': actor.id, 'name': actor.name}]
-        }), 201
+        }
+        logging.debug(f"Create movie response: {response}")
+        return jsonify(response), 201
     except Exception as e:
         db.session.rollback()
+        logging.error(f"Create movie error: {str(e)}")
         return jsonify({'error': f'Failed to create movie: {str(e)}'}), 500
 
 @movie_bp.route('', methods=['GET'], endpoint='get_movies')
+@jwt_required()
 def get_movies():
+    logging.debug("Fetching all movies")
     movies = Movie.query.all()
-    return jsonify([{
+    response = [{
         "id": movie.id,
-        "movie_title": movie.movie_title,
-        "movie_genres": movie.movie_genres,
+        "movie_title": movie.movie_title if movie.movie_title else "Unknown Title",
+        "movie_genres": movie.movie_genres if movie.movie_genres else "Unknown",
         "description": movie.description,
+        "image_url": f"/static/{movie.image_url}" if movie.image_url else "/static/movies/bloodborne1.jpg",
         "created_at": movie.created_at.isoformat(),
-        "ratings_count": Rating.query.filter_by(movie_id=movie.id).count(),
-        "reviews_count": Review.query.filter_by(movie_id=movie.id).count(),
+        "ratingsCount": Rating.query.filter_by(movie_id=movie.id).count(),
+        "reviewsCount": Review.query.filter_by(movie_id=movie.id).count(),
         "actors": [{'id': actor.id, 'name': actor.name} for actor in movie.actors.all()]
-    } for movie in movies]), 200
+    } for movie in movies]
+    logging.debug(f"Get movies response: {response[:2]}") # Log first two for brevity
+    return jsonify(response), 200
 
 @movie_bp.route('/<id>', methods=['GET'], endpoint='single_movie')
 @jwt_required()
 def single_movie(id):
+    logging.debug(f"Fetching movie ID: {id}")
     movie = Movie.query.get_or_404(id)
     actors = [{'id': actor.id, 'name': actor.name} for actor in movie.actors.all()]
-    return jsonify({
+    response = {
         "id": movie.id,
-        "movie_title": movie.movie_title,
-        "movie_genres": movie.movie_genres,
+        "movie_title": movie.movie_title if movie.movie_title else "Unknown Title",
+        "movie_genres": movie.movie_genres if movie.movie_genres else "Unknown",
         "description": movie.description,
+        "image_url": f"/static/{movie.image_url}" if movie.image_url else "/static/movies/bloodborne1.jpg",
         "created_at": movie.created_at.isoformat(),
         "actors": actors
-    }), 200
+    }
+    logging.debug(f"Single movie response: {response}")
+    return jsonify(response), 200
 
 @movie_bp.route('/update/<id>', methods=['PUT'], endpoint='update_movie')
 @admin_required
 def update_movie(id):
+    logging.debug(f"Update movie ID: {id}, data: {request.json}")
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
@@ -107,23 +135,41 @@ def update_movie(id):
         movie.movie_title = data['movie_title']
         movie.movie_genres = data['movie_genres']
         movie.description = data.get('description', movie.description)
+        if 'image' in data:
+            image_filename = data['image']
+            if image_filename not in AVAILABLE_IMAGES:
+                return jsonify({'error': f"Image must be one of {', '.join(AVAILABLE_IMAGES)}"}), 400
+            image_path = os.path.join(IMAGE_FOLDER, image_filename)
+            if not os.path.isfile(image_path):
+                return jsonify({'error': f"Image {image_filename} not found in {IMAGE_FOLDER}"}), 404
+            movie.image_url = f"movies/{image_filename}"
+        if 'actor_id' in data:
+            actor = Actor.query.get(data['actor_id'])
+            if not actor:
+                return jsonify({'error': f"Actor with ID {data['actor_id']} not found"}), 404
+            movie.actors.append(actor)
         db.session.commit()
-        return jsonify({
+        response = {
             'message': 'Movie updated successfully',
             'id': movie.id,
             'movie_title': movie.movie_title,
             'movie_genres': movie.movie_genres,
             'description': movie.description,
+            'image_url': f"/static/{movie.image_url}" if movie.image_url else "/static/movies/bloodborne1.jpg",
             'created_at': movie.created_at.isoformat(),
             'actors': [{'id': actor.id, 'name': actor.name} for actor in movie.actors.all()]
-        }), 200
+        }
+        logging.debug(f"Update movie response: {response}")
+        return jsonify(response), 200
     except Exception as e:
         db.session.rollback()
+        logging.error(f"Update movie error: {str(e)}")
         return jsonify({'error': f'Failed to update movie: {str(e)}'}), 500
 
 @movie_bp.route('/delete/<id>', methods=['DELETE'], endpoint='delete_movie')
 @admin_required
 def delete_movie(id):
+    logging.debug(f"Delete movie ID: {id}")
     movie = Movie.query.get_or_404(id)
     try:
         Rating.query.filter_by(movie_id=id).delete()
@@ -134,14 +180,17 @@ def delete_movie(id):
                 watchlist.movie_ids = [mid for mid in watchlist.movie_ids if mid != id]
         db.session.delete(movie)
         db.session.commit()
+        logging.debug(f"Movie ID {id} deleted")
         return jsonify({'message': 'Movie and associated ratings, reviews, and watchlist entries deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
+        logging.error(f"Delete movie error: {str(e)}")
         return jsonify({'error': f'Failed to delete movie: {str(e)}'}), 500
 
 @movie_bp.route('/<id>/actors', methods=['POST'], endpoint='add_actor')
 @admin_required
 def add_actor(id):
+    logging.debug(f"Add actor to movie ID: {id}, data: {request.json}")
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
     
@@ -157,31 +206,39 @@ def add_actor(id):
     movie.actors.append(actor)
     try:
         db.session.commit()
+        logging.debug(f"Actor {actor.name} added to movie {movie.movie_title}")
         return jsonify({'message': f'Actor {actor.name} added to movie {movie.movie_title}'}), 200
     except Exception as e:
         db.session.rollback()
+        logging.error(f"Add actor error: {str(e)}")
         return jsonify({'error': f'Failed to add actor: {str(e)}'}), 500
 
 @movie_bp.route('/<id>/actors/<actor_id>', methods=['DELETE'], endpoint='remove_actor')
 @admin_required
 def remove_actor(id, actor_id):
+    logging.debug(f"Remove actor ID: {actor_id} from movie ID: {id}")
     movie = Movie.query.get_or_404(id)
     actor = Actor.query.get_or_404(actor_id)
     try:
         db.session.delete(actor)
         db.session.commit()
+        logging.debug(f"Actor {actor.name} deleted from movie {movie.movie_title}")
         return jsonify({'message': f'Actor {actor.name} deleted from database'}), 200
     except Exception as e:
         db.session.rollback()
+        logging.error(f"Remove actor error: {str(e)}")
         return jsonify({'error': f'Failed to delete actor: {str(e)}'}), 500
 
 @movie_bp.route('/<id>/stats', methods=['GET'])
 def movie_stats(id):
+    logging.debug(f"Fetch stats for movie ID: {id}")
     movie = Movie.query.get_or_404(id)
     ratings_count = Rating.query.filter_by(movie_id=movie.id).count()
     reviews_count = Review.query.filter_by(movie_id=movie.id).count()
-    return jsonify({
+    response = {
         "ratings_count": ratings_count,
         "reviews_count": reviews_count,
         "actors_count": movie.actors.count()
-    }), 200
+    }
+    logging.debug(f"Movie stats response: {response}")
+    return jsonify(response), 200

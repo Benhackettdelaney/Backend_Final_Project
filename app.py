@@ -12,36 +12,39 @@ from routes.actor_routes import actor_bp
 from extensions import db, migrate
 from config.config import Config
 
-app = Flask(__name__)
-app.config.from_object(Config)
-app.secret_key = 'your-secret-key-here'
-app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key-here'
-app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']  
-app.config['JWT_COOKIE_CSRF_PROTECT'] = True
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+    app.secret_key = 'your-secret-key-here'
+    app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key-here'
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = True
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
 
-jwt = JWTManager(app)
+    jwt = JWTManager(app)
+    CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
+    print("CORS configured with origins: http://localhost:3000")
+    app.logger.debug("Starting Flask app")
 
-CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
-print("CORS configured with origins: http://localhost:3000")
-app.logger.debug("Starting Flask app")
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-db.init_app(app)
-migrate.init_app(app, db)
+    app.register_blueprint(movie_bp, url_prefix='/movies')
+    app.register_blueprint(ranking_bp, url_prefix='/ranking')
+    app.register_blueprint(watchlist_bp, url_prefix='/watchlists')
+    app.register_blueprint(rating_bp, url_prefix='/ratings')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(review_bp, url_prefix='/reviews')
+    app.register_blueprint(actor_bp, url_prefix='/actors')
 
-app.register_blueprint(movie_bp, url_prefix='/movies')
-app.register_blueprint(ranking_bp, url_prefix='/ranking')
-app.register_blueprint(watchlist_bp, url_prefix='/watchlists')
-app.register_blueprint(rating_bp, url_prefix='/ratings')
-app.register_blueprint(auth_bp, url_prefix='/auth')
-app.register_blueprint(review_bp, url_prefix='/reviews')
-app.register_blueprint(actor_bp, url_prefix='/actors')
+    @app.route('/', methods=['GET'])
+    def hello_world():
+        return "Hello World"
 
-@app.route('/', methods=['GET'])
-def hello_world():
-    return "Hello World"
+    return app
 
 if __name__ == '__main__':
+    app = create_app()
     with app.app_context():
         db.create_all()
     app.run(port=5000, debug=True)
