@@ -1,10 +1,8 @@
-# seeders/movie_seeder.py
 import sys
 import os
 import tensorflow_datasets as tfds
 from flask import Flask
 
-# Add project root to sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -25,12 +23,10 @@ genre_map = {
 }
 
 def seed_movies():
-    # Create a Flask app for the seeder
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///databasemovie.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Initialize the database with the app
     db.init_app(app)
 
     with app.app_context():
@@ -54,11 +50,9 @@ def seed_movies():
             db.session.rollback()
             return
 
-        # Define available image (only bloodborne1.jpg for now)
         image_folder = "static/movies"
         os.makedirs(image_folder, exist_ok=True)
         available_images = ['bloodborne1.jpg']
-        # Verify image exists
         for img in available_images:
             full_path = os.path.join(image_folder, img)
             if not os.path.isfile(full_path):
@@ -79,7 +73,7 @@ def seed_movies():
             existing_movie = Movie.query.filter_by(id=movie_id).first()
             if not existing_movie:
                 selected_actors = random.sample(all_actors, 4)
-                selected_image = available_images[0]  # Use bloodborne1.jpg
+                selected_image = available_images[0]  
                 image_url = f"movies/{selected_image}"
                 
                 new_movie = Movie(

@@ -1,4 +1,3 @@
-# models/review.py
 from extensions import db
 
 class Review(db.Model):

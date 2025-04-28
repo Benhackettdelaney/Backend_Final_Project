@@ -1,4 +1,3 @@
-# tests/test_watchlist.py
 import pytest
 import json
 from tests.config import app, client, init_database, user_token

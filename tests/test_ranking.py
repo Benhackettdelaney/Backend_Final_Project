@@ -1,4 +1,3 @@
-# tests/test_ranking.py
 import pytest
 import json
 import numpy as np

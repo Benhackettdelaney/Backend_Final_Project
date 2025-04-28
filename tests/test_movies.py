@@ -1,4 +1,3 @@
-# tests/test_movies.py
 import pytest
 import json
 from unittest.mock import patch

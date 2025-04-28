@@ -1,4 +1,3 @@
-#this omne
 from flask import Blueprint, request, jsonify
 from models.movie import Movie
 from models.user import User

@@ -1,4 +1,3 @@
-#config
 import os
 
 class Config:

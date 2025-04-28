@@ -1,4 +1,3 @@
-#this one
 from flask import Blueprint, request, jsonify
 from models.rating import Rating
 from models.movie import Movie

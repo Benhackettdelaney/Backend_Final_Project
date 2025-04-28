@@ -1,4 +1,3 @@
-# routes/review.py
 from flask import Blueprint, request, jsonify
 from models.reviews import Review  
 from models.user import User

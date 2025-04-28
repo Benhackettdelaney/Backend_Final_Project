@@ -1,4 +1,3 @@
-# models/actors.py
 from extensions import db
 from models.actor_movie import movie_actors 
 

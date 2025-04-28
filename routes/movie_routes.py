@@ -1,4 +1,3 @@
-# routes/movies.py
 from flask import Blueprint, request, jsonify
 from models.movie import Movie
 from models.watchlist import Watchlist
@@ -98,9 +97,9 @@ def get_movies():
         "reviewsCount": Review.query.filter_by(movie_id=movie.id).count(),
         "actors": [{'id': actor.id, 'name': actor.name} for actor in movie.actors.all()]
     } for movie in movies]
-    logging.debug(f"Get movies response: {response[:2]}") # Log first two for brevity
+    logging.debug(f"Get movies response: {response[:2]}") 
     return jsonify(response), 200
-
+        
 @movie_bp.route('/<id>', methods=['GET'], endpoint='single_movie')
 @jwt_required()
 def single_movie(id):

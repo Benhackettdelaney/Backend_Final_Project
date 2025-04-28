@@ -1,4 +1,3 @@
-# tests/test_actor.py
 import pytest
 import json
 from unittest.mock import patch
