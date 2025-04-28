@@ -61,6 +61,9 @@ def create_movie():
             description=data.get('description'),
             image_url=image_url
         )
+        if actor in new_movie.actors:
+            logging.debug(f"Duplicate actor ID {data['actor_id']} for new movie ID {data['id']}")
+            return jsonify({'error': 'Please select a different actor'}), 400
         new_movie.actors.append(actor)
         db.session.add(new_movie)
         db.session.commit()
@@ -79,7 +82,7 @@ def create_movie():
     except Exception as e:
         db.session.rollback()
         logging.error(f"Create movie error: {str(e)}")
-        return jsonify({'error': f'Failed to create movie: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to create movie'}), 500
 
 @movie_bp.route('', methods=['GET'], endpoint='get_movies')
 @jwt_required()
@@ -146,7 +149,8 @@ def update_movie(id):
             actor = Actor.query.get(data['actor_id'])
             if not actor:
                 return jsonify({'error': f"Actor with ID {data['actor_id']} not found"}), 404
-            movie.actors.append(actor)
+            if actor not in movie.actors:  # Only append if actor is not already associated
+                movie.actors.append(actor)
         db.session.commit()
         response = {
             'message': 'Movie updated successfully',
@@ -163,7 +167,7 @@ def update_movie(id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Update movie error: {str(e)}")
-        return jsonify({'error': f'Failed to update movie: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to update movie'}), 500
 
 @movie_bp.route('/delete/<id>', methods=['DELETE'], endpoint='delete_movie')
 @admin_required
@@ -184,7 +188,7 @@ def delete_movie(id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Delete movie error: {str(e)}")
-        return jsonify({'error': f'Failed to delete movie: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to delete movie: {str(e)}'}), 500
 
 @movie_bp.route('/<id>/actors', methods=['POST'], endpoint='add_actor')
 @admin_required
@@ -200,7 +204,7 @@ def add_actor(id):
     movie = Movie.query.get_or_404(id)
     actor = Actor.query.get_or_404(data['actor_id'])
     if actor in movie.actors:
-        return jsonify({'error': 'Actor already assigned to this movie'}), 400
+        return jsonify({'error': 'Actor is already in movie'}), 400
 
     movie.actors.append(actor)
     try:

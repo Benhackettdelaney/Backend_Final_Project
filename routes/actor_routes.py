@@ -5,8 +5,25 @@ from models.movie import Movie
 from flask_jwt_extended import jwt_required
 from routes.auth import admin_required
 from datetime import datetime
+import pycountry
 
 actor_bp = Blueprint('actor_bp', __name__)
+
+def is_valid_country(nationality):
+    """Check if nationality is a valid country name using pycountry."""
+    if not nationality:
+        return True  
+    return any(country.name.lower() == nationality.lower() for country in pycountry.countries)
+
+@actor_bp.route('/countries', methods=['GET'])
+@jwt_required()
+def get_countries():
+    """Return a list of valid country names."""
+    try:
+        countries = [country.name for country in pycountry.countries]
+        return jsonify(countries), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch countries: {str(e)}'}), 500
 
 @actor_bp.route('', methods=['GET'])
 @jwt_required()
@@ -31,7 +48,7 @@ def create_actor():
     
     data = request.json
     if not data or 'name' not in data:
-        return jsonify({'error': 'Missing name'}), 400
+        return jsonify({'error': 'Name is required'}), 400
 
     try:
         if len(data['name']) > 100:
@@ -43,12 +60,15 @@ def create_actor():
         if previous_work and len(previous_work) > 200:
             return jsonify({'error': 'Previous work must be 200 characters or less'}), 400
         nationality = data.get('nationality')
-        if nationality and len(nationality) > 100:
-            return jsonify({'error': 'Nationality must be 100 characters or less'}), 400
+        if nationality and not is_valid_country(nationality):
+            return jsonify({'error': 'Nationality must be a valid country name'}), 400
         
         birthday = data.get('birthday')
         if birthday and isinstance(birthday, str):
-            birthday = datetime.strptime(birthday, '%Y-%m-%d')
+            try:
+                birthday = datetime.strptime(birthday, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Birthday must be in YYYY-MM-DD format'}), 400
 
         new_actor = Actor(
             name=data['name'],
@@ -68,8 +88,6 @@ def create_actor():
             'birthday': new_actor.birthday.isoformat() if new_actor.birthday else None,
             'nationality': new_actor.nationality
         }), 201
-    except ValueError:
-        return jsonify({'error': 'Invalid birthday format. Use YYYY-MM-DD'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to create actor: {str(e)}'}), 500
@@ -98,7 +116,7 @@ def update_actor(actor_id):
     
     data = request.json
     if not data or 'name' not in data:
-        return jsonify({'error': 'Missing name'}), 400
+        return jsonify({'error': 'Name is required'}), 400
 
     actor = Actor.query.get_or_404(actor_id)
     try:
@@ -111,12 +129,15 @@ def update_actor(actor_id):
         if previous_work and len(previous_work) > 200:
             return jsonify({'error': 'Previous work must be 200 characters or less'}), 400
         nationality = data.get('nationality', actor.nationality)
-        if nationality and len(nationality) > 100:
-            return jsonify({'error': 'Nationality must be 100 characters or less'}), 400
+        if nationality and not is_valid_country(nationality):
+            return jsonify({'error': 'Nationality must be a valid country name'}), 400
         
         birthday = data.get('birthday', actor.birthday)
         if birthday and isinstance(birthday, str):
-            birthday = datetime.strptime(birthday, '%Y-%m-%d')
+            try:
+                birthday = datetime.strptime(birthday, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Birthday must be in YYYY-MM-DD format'}), 400
 
         actor.name = data['name']
         actor.description = description
@@ -134,8 +155,6 @@ def update_actor(actor_id):
             'birthday': actor.birthday.isoformat() if actor.birthday else None,
             'nationality': actor.nationality
         }), 200
-    except ValueError:
-        return jsonify({'error': 'Invalid birthday format. Use YYYY-MM-DD'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to update actor: {str(e)}'}), 500
