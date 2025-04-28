@@ -222,15 +222,19 @@ def remove_actor(id, actor_id):
     logging.debug(f"Remove actor ID: {actor_id} from movie ID: {id}")
     movie = Movie.query.get_or_404(id)
     actor = Actor.query.get_or_404(actor_id)
+    
     try:
-        db.session.delete(actor)
+        if actor not in movie.actors:
+            return jsonify({'error': f'Actor {actor.name} is not associated with this movie'}), 404
+        
+        movie.actors.remove(actor)
         db.session.commit()
-        logging.debug(f"Actor {actor.name} deleted from movie {movie.movie_title}")
-        return jsonify({'message': f'Actor {actor.name} deleted from database'}), 200
+        logging.debug(f"Actor {actor.name} removed from movie {movie.movie_title}")
+        return jsonify({'message': f'Actor {actor.name} removed from movie {movie.movie_title}'}), 200
     except Exception as e:
         db.session.rollback()
         logging.error(f"Remove actor error: {str(e)}")
-        return jsonify({'error': f'Failed to delete actor: {str(e)}'}), 500
+        return jsonify({'error': f'Failed to remove actor from movie: {str(e)}'}), 500
 
 @movie_bp.route('/<id>/stats', methods=['GET'])
 def movie_stats(id):
