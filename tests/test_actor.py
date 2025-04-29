@@ -25,7 +25,7 @@ def test_create_actor_success(client, admin_token):
         "description": "New description",
         "previous_work": "New work",
         "birthday": "1985-01-01",
-        "nationality": "New nationality"
+        "nationality": "United States"  
     }
     response = client.post("/actors", json=data, headers=headers)
     data = json.loads(response.data)
@@ -45,7 +45,7 @@ def test_create_actor_invalid_birthday(client, admin_token):
     data = json.loads(response.data)
 
     assert response.status_code == 400
-    assert data["error"] == "Invalid birthday format. Use YYYY-MM-DD"
+    assert data["error"] == "Birthday must be in YYYY-MM-DD format"  
 
 @pytest.mark.usefixtures("init_database")
 def test_get_actor_success(client, user_token):
@@ -69,7 +69,8 @@ def test_update_actor_success(client, admin_token):
     headers = {"Authorization": f"Bearer {admin_token}"}
     data = {
         "name": "Updated Actor",
-        "description": "Updated description"
+        "description": "Updated description",
+        "nationality": "United States"  
     }
     response = client.put("/actors/1", json=data, headers=headers)
     data = json.loads(response.data)
@@ -96,4 +97,4 @@ def test_remove_actor_from_movie_success(client, admin_token):
 
     assert response.status_code == 200
     assert "message" in data
-    assert "Test Actor deleted from database" in data["message"]
+    assert "Actor Test Actor removed from movie Test Movie" in data["message"]  

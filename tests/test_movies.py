@@ -125,4 +125,4 @@ def test_remove_actor_success(client, admin_token):
 
     assert response.status_code == 200
     assert "message" in data
-    assert "Test Actor deleted from database" in data["message"]
+    assert "Actor Test Actor removed from movie Test Movie" in data["message"]  
