@@ -3,6 +3,7 @@ import os
 import tensorflow_datasets as tfds
 from flask import Flask
 
+# This makes sure the parent dictory is in the import path, this was used because when trying to seed the files couldn't be found
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -17,10 +18,12 @@ from flask_bcrypt import Bcrypt
 from faker import Faker
 import random
 
+# initailizing faker and bcrypt for generating fake data and hashes the user passwords
 bcrypt = Bcrypt()
 fake = Faker()
 
 def seed_user():
+    # Sets up the Flask app and Database
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///databasemovie.db'  
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -29,6 +32,8 @@ def seed_user():
 
     with app.app_context():
         print("Seeding users...")
+
+        # Creates an admin if it doesn not exist already 
         admin_email = "admin@moviemuse.com"
         admin_password = "adminpassword"
         
@@ -51,6 +56,7 @@ def seed_user():
         else:
             admin_user = existing_admin
 
+        # This checks the movies exist before seeding the users
         all_movies = Movie.query.all()
         if not all_movies:
             print("No movies found in the database. Please seed movies first.")
@@ -68,18 +74,23 @@ def seed_user():
 
         print(f"Seeding {max_users} users with 1 review and 1 rating per movie, plus private and public watchlists...")
 
+        # This loads the movie rating dataset from TensorFlow
         ratings_dataset = list(tfds.load("movielens/100k-ratings", split="train"))
         counter = 0
 
+        # This creates users for the database
         for rating in ratings_dataset:
             user_id = rating["user_id"].numpy().decode('utf-8')
             user_gender = int(rating["user_gender"].numpy())
             user_age = int(rating["raw_user_age"].numpy())
             user_occupation_label = int(rating["user_occupation_label"].numpy())
 
+            # This makes sure their are no duplicates and limits the creation of users
             if user_id not in user_map and len(user_map) < max_users:
                 email = f"user{user_id}@moviemuse.com"
                 max_attempts = 5
+
+                # This makes unique usernames
                 for attempt in range(max_attempts):
                     username = fake.user_name()
                     if not User.query.filter_by(username=username).first():
@@ -87,6 +98,7 @@ def seed_user():
                     if attempt == max_attempts - 1:
                         username = f"{fake.user_name()}{user_id}"
                 
+                # This creates the users if they do not already exist
                 existing_user = User.query.filter_by(email=email).first()
                 if not existing_user:
                     hashed_password = bcrypt.generate_password_hash("password123").decode('utf-8')
@@ -102,22 +114,25 @@ def seed_user():
                     )
                     db.session.add(new_user)
                     new_users.append(new_user)
-                    user_map[user_id] = None  
+                    user_map[user_id] = None  # This is a place holder for when the user id is commited
 
             counter += 1
             if counter >= max_users:
                 break
 
+        # This commits all of the users to the database 
         if new_users:
             db.session.commit()
             for new_user in new_users:
-                user_map[new_user.email.split('@')[0][4:]] = new_user.id
+                user_map[new_user.email.split('@')[0][4:]] = new_user.id # This extract the user_id from the email
             print(f"Seeded {len(new_users)} new users.")
 
+        # This gets a list of user ids for assigning the reviews and ratings
         user_ids = [user_id for user_id_str, user_id in user_map.items() if user_id]  
         counter = 0
-        batch_size = 1000  
+        batch_size = 1000  # The commit batches
 
+        # this assigns one review and one rating per movie from a user randomly selected
         for movie_id in movie_ids:
             movie = Movie.query.get(movie_id)
             if movie:
@@ -147,6 +162,7 @@ def seed_user():
                 db.session.commit()
                 print(f"Committed {counter} ratings and reviews...")
 
+        # This creates two watchlists per seeded user, a private and public watchlist
         for user_id in user_ids:
             if not Watchlist.query.filter_by(user_id=user_id, title="My Private List").first():
                 private_movie_ids = random.sample(movie_ids, min(3, len(movie_ids)))  

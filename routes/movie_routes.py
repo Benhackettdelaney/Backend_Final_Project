@@ -12,11 +12,14 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+# Creates the blueprint for the movie route
 movie_bp = Blueprint('movie_bp', __name__)
 
+# List of images that the movies use, the movies just use the bloodborne1 image
 AVAILABLE_IMAGES = ['bloodborne1.jpg']
 IMAGE_FOLDER = 'static/movies'
 
+# This defines code only allowing admins to use certain routes
 def admin_required(f):
     @jwt_required()
     def decorated_function(*args, **kwargs):
@@ -27,6 +30,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# This is the create route, the admin can use this to create new movies
 @movie_bp.route('/create', methods=['POST'], endpoint='create_movie')
 @admin_required
 def create_movie():
@@ -84,6 +88,7 @@ def create_movie():
         logging.error(f"Create movie error: {str(e)}")
         return jsonify({'error': 'Failed to create movie'}), 500
 
+# This is the GET route to get all of the movies
 @movie_bp.route('', methods=['GET'], endpoint='get_movies')
 @jwt_required()
 def get_movies():
@@ -103,6 +108,7 @@ def get_movies():
     logging.debug(f"Get movies response: {response[:2]}") 
     return jsonify(response), 200
         
+# this is the GET route to get specific movies by their ids
 @movie_bp.route('/<id>', methods=['GET'], endpoint='single_movie')
 @jwt_required()
 def single_movie(id):
@@ -121,6 +127,7 @@ def single_movie(id):
     logging.debug(f"Single movie response: {response}")
     return jsonify(response), 200
 
+# This update route allows admins to edit movie details
 @movie_bp.route('/update/<id>', methods=['PUT'], endpoint='update_movie')
 @admin_required
 def update_movie(id):
@@ -149,7 +156,7 @@ def update_movie(id):
             actor = Actor.query.get(data['actor_id'])
             if not actor:
                 return jsonify({'error': f"Actor with ID {data['actor_id']} not found"}), 404
-            if actor not in movie.actors:  # Only append if actor is not already associated
+            if actor not in movie.actors:  
                 movie.actors.append(actor)
         db.session.commit()
         response = {
@@ -169,6 +176,7 @@ def update_movie(id):
         logging.error(f"Update movie error: {str(e)}")
         return jsonify({'error': 'Failed to update movie'}), 500
 
+# Deleting movie data and casade for admins
 @movie_bp.route('/delete/<id>', methods=['DELETE'], endpoint='delete_movie')
 @admin_required
 def delete_movie(id):
@@ -190,6 +198,7 @@ def delete_movie(id):
         logging.error(f"Delete movie error: {str(e)}")
         return jsonify({'error': 'Failed to delete movie: {str(e)}'}), 500
 
+# This is the add actor route that allows admins to add actors to movies
 @movie_bp.route('/<id>/actors', methods=['POST'], endpoint='add_actor')
 @admin_required
 def add_actor(id):
@@ -216,6 +225,7 @@ def add_actor(id):
         logging.error(f"Add actor error: {str(e)}")
         return jsonify({'error': f'Failed to add actor: {str(e)}'}), 500
 
+# This is the remove actor route that allows admins to remove actors from movies
 @movie_bp.route('/<id>/actors/<actor_id>', methods=['DELETE'], endpoint='remove_actor')
 @admin_required
 def remove_actor(id, actor_id):

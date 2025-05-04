@@ -4,8 +4,10 @@ import numpy as np
 from extensions import db
 from models.movie import Movie
 
+# Defining the ranking model blueprint
 ranking_bp = Blueprint('ranking_bp', __name__)
 
+# Loading TensorFlow Ranking model from ml_models folder
 try:
     ranking_model = tf.saved_model.load("ml_models/ranking_model")
     print("Ranking model loaded successfully")
@@ -15,10 +17,12 @@ except Exception as e:
     print(f"Error loading ranking model: {e}")
     ranking_model = None
 
+# Storing a list movie title variables
 movie_titles = []
 num_movies = 0
 
 def load_movie_titles():
+    # Gets movies from the database if it hasn't already
     global movie_titles, num_movies
     if not movie_titles:
         try:
@@ -39,6 +43,7 @@ def get_top_ranked_movies():
     print(f"Request headers: {request.headers}")
     print(f"Request body: {request.get_data(as_text=True)}")
 
+    # Gets the user id from the request body or the query params
     json_data = request.get_json(silent=True)
     if json_data and 'user_id' in json_data:
         user_id = json_data['user_id']
@@ -52,24 +57,34 @@ def get_top_ranked_movies():
     except ValueError:
         return jsonify({'error': 'user_id must be an integer'}), 400
 
+    # This checks if the model and movie titles are ready
     if ranking_model is None:
         return jsonify({'error': 'Ranking model not available'}), 500
     if not movie_titles:
         return jsonify({'error': 'Movie titles not available'}), 500
 
+    # Creates an input that assigns the same user ids to the movie titles
+    # This unfortunately makes the recommendations for a the user the same which is inaccurate however
+    # When trying to make it work for all user ids problems arose and it was successful
     user_ids = tf.constant([user_id] * num_movies, dtype=tf.string)
     movie_titles_tensor = tf.constant(movie_titles, dtype=tf.string)
+
+    # Dictionary for the model input
     input_data = {
         "user_id": user_ids,
         "movie_title": movie_titles_tensor
     }
 
     try:
+        # Gets the predictions from the model
         predictions = ranking_model(input_data)
         ratings = predictions.numpy().flatten()
 
+        # This combines the movies with the predicted ratings from the model
         movies = Movie.query.all()
         movie_ratings = [(movie, rating) for movie, rating in zip(movies, ratings)]
+
+        # Sorts the movies into a top 5 in the response
         sorted_movie_ratings = sorted(movie_ratings, key=lambda x: x[1], reverse=True)
         top_5 = sorted_movie_ratings[:5]
 

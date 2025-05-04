@@ -1,9 +1,9 @@
+# This code was done initially to try get data from the database
+#import tensorflow as tf;
+#import numpy as np;
 
-import tensorflow as tf;
-import numpy as np;
 
-
-ranking_model = tf.saved_model.load("ml_models/ranking_model")
+#ranking_model = tf.saved_model.load("ml_models/ranking_model")
 
 # Get user ratings from request
 # user_ratings = request.json.get('user_ratings') 
@@ -14,14 +14,14 @@ ranking_model = tf.saved_model.load("ml_models/ranking_model")
 
 # Prepare input for the ranking model
 # ranking_input = prepare_ranking_input(movie_ids, ratings)  
-ranking_input = {"user_id": np.array(["42"]), "movie_title": ["Speed (1994)"]}  
+#ranking_input = {"user_id": np.array(["42"]), "movie_title": ["Speed (1994)"]}  
 
 # Predict rankings using the model
 # ranking_predictions = ranking_model.predict(ranking_input)
 
-result = ranking_model(ranking_input).numpy()
+#result = ranking_model(ranking_input).numpy()
 
-print(result);
+#print(result);
 
 # Load it back; can also be done in TensorFlow Serving.lig
 # loaded = tf.saved_model.load("ml_models/retrieval_model")

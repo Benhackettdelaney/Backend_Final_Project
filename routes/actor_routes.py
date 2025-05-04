@@ -7,24 +7,28 @@ from routes.auth import admin_required
 from datetime import datetime
 import pycountry
 
+# Defines the blueprint for the actor route
 actor_bp = Blueprint('actor_bp', __name__)
 
+# This checks the nationality of the actor is a valid country name, this is from pycountry library
 def is_valid_country(nationality):
-    """Check if nationality is a valid country name using pycountry."""
+    "Check if nationality is a valid country name using pycountry."
     if not nationality:
         return True  
     return any(country.name.lower() == nationality.lower() for country in pycountry.countries)
 
+# Gets a list of all the countries
 @actor_bp.route('/countries', methods=['GET'])
 @jwt_required()
 def get_countries():
-    """Return a list of valid country names."""
+    "Return a list of valid country names."
     try:
         countries = [country.name for country in pycountry.countries]
         return jsonify(countries), 200
     except Exception as e:
         return jsonify({'error': f'Failed to fetch countries: {str(e)}'}), 500
 
+# Gets a list of all the actors using GET
 @actor_bp.route('', methods=['GET'])
 @jwt_required()
 def get_all_actors():
@@ -39,6 +43,7 @@ def get_all_actors():
         'movie_count': actor.movies.count()
     } for actor in actors]), 200
 
+# This allows admins to create new actors
 @actor_bp.route('', methods=['POST'])
 @jwt_required()
 @admin_required
@@ -51,6 +56,7 @@ def create_actor():
         return jsonify({'error': 'Name is required'}), 400
 
     try:
+        # Checks the fields length, validation of the nationality, and the birthday format 
         if len(data['name']) > 100:
             return jsonify({'error': 'Name must be 100 characters or less'}), 400
         description = data.get('description')
@@ -70,6 +76,7 @@ def create_actor():
             except ValueError:
                 return jsonify({'error': 'Birthday must be in YYYY-MM-DD format'}), 400
 
+        # Creates and saves the new actor
         new_actor = Actor(
             name=data['name'],
             description=description,
@@ -92,6 +99,7 @@ def create_actor():
         db.session.rollback()
         return jsonify({'error': f'Failed to create actor: {str(e)}'}), 500
 
+# This GET gets a specfic actor with the id
 @actor_bp.route('/<actor_id>', methods=['GET'])
 @jwt_required()
 def get_actor(actor_id):
@@ -107,6 +115,7 @@ def get_actor(actor_id):
         'movies': movies
     }), 200
 
+# The update route allows admins to edit the actor details
 @actor_bp.route('/<actor_id>', methods=['PUT'])
 @jwt_required()
 @admin_required
@@ -120,6 +129,7 @@ def update_actor(actor_id):
 
     actor = Actor.query.get_or_404(actor_id)
     try:
+        # This code checks the length of the fields, and keeps the existing values
         if len(data['name']) > 100:
             return jsonify({'error': 'Name must be 100 characters or less'}), 400
         description = data.get('description', actor.description)
@@ -139,6 +149,7 @@ def update_actor(actor_id):
             except ValueError:
                 return jsonify({'error': 'Birthday must be in YYYY-MM-DD format'}), 400
 
+        # This updates the actor fields
         actor.name = data['name']
         actor.description = description
         actor.previous_work = previous_work
@@ -159,6 +170,7 @@ def update_actor(actor_id):
         db.session.rollback()
         return jsonify({'error': f'Failed to update actor: {str(e)}'}), 500
 
+# This allows admins to delete actors 
 @actor_bp.route('/<actor_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
@@ -172,6 +184,7 @@ def delete_actor(actor_id):
         db.session.rollback()
         return jsonify({'error': f'Failed to delete actor: {str(e)}'}), 500
 
+# This removes an actor from a movie
 @actor_bp.route('/movies/<movie_id>/actors/<actor_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
@@ -180,6 +193,7 @@ def remove_actor_from_movie(movie_id, actor_id):
     actor = Actor.query.get_or_404(actor_id)
     
     try:
+        # Checks if the actor is in the movie
         if actor not in movie.actors:
             return jsonify({'error': f'Actor {actor.name} is not associated with this movie'}), 404
         

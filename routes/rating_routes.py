@@ -8,19 +8,24 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+# This defines the blueprint for the rating route
 rating_bp = Blueprint('rating_bp', __name__)
 
+# This adds or updates the users rating on a movie
 @rating_bp.route('', methods=['POST'])
-@jwt_required()
-def add_rating():
-    user_id = get_jwt_identity()
+@jwt_required() # Need to be logged in
+def add_rating(): 
+    user_id = get_jwt_identity() # This gets the user id from the token
     json_data = request.get_json()
+
+    # This checks the required fields 
     if json_data is None or 'movie_id' not in json_data or 'rating' not in json_data:
         return jsonify({'error': 'movie_id and rating are required'}), 400
 
     movie_id = json_data['movie_id']
     rating = json_data['rating']
 
+    # This validates rating input making sure its a number between 1-5
     try:
         rating = float(rating)
         if not (1.0 <= rating <= 5.0):
@@ -28,6 +33,7 @@ def add_rating():
     except ValueError:
         return jsonify({'error': 'rating must be a number'}), 400
 
+    # Checks if the user and movie exist
     user = User.query.get(int(user_id))
     movie = Movie.query.get(movie_id)
     if not user:
@@ -38,14 +44,17 @@ def add_rating():
     try:
         existing_rating = Rating.query.filter_by(user_id=user_id, movie_id=movie_id).first()
         if existing_rating:
+            # Updates the rating if it exists
             existing_rating.rating = rating
             action = "updated"
         else:
+            # This creates a new rating if it didn't exist
             new_rating = Rating(user_id=user_id, movie_id=movie_id, rating=rating)
             db.session.add(new_rating)
             action = "added"
 
         db.session.commit()
+
         return jsonify({
             'message': f'Successfully {action} rating for {movie.movie_title} with {rating}',
             'id': existing_rating.id if existing_rating else new_rating.id
@@ -54,6 +63,7 @@ def add_rating():
         db.session.rollback()
         return jsonify({'error': f'Failed to add rating: {str(e)}'}), 500
 
+# This is the GET routes to get all of the ratings for the user who has logged in
 @rating_bp.route('', methods=['GET'])
 @jwt_required()
 def get_user_ratings():
@@ -64,6 +74,7 @@ def get_user_ratings():
 
     try:
         ratings = Rating.query.filter_by(user_id=user_id).all()
+        # This creates a list of rated movies witht their details
         rated_movies_list = [
             {
                 "id": rating.id,
@@ -80,6 +91,7 @@ def get_user_ratings():
     except Exception as e:
         return jsonify({'error': f'Failed to fetch ratings: {str(e)}'}), 500
 
+# This update route allows users to edit the rating thet made
 @rating_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_rating(id):
@@ -91,6 +103,7 @@ def update_rating(id):
 
     rating_value = json_data['rating']
 
+    # This validates the new rating
     try:
         rating_value = float(rating_value)
         if not (1.0 <= rating_value <= 5.0):
@@ -98,11 +111,14 @@ def update_rating(id):
     except ValueError:
         return jsonify({'error': 'rating must be a number'}), 400
 
+    # This finds the ratings by their ids
     rating = Rating.query.get(id)
     if not rating:
         logging.debug(f"Rating {id} not found")
         return jsonify({'error': f'Rating with ID {id} not found'}), 404
     logging.debug(f"Rating user_id: {rating.user_id}")
+    
+    # This only allows users with the same id as the rating to be updates
     if str(rating.user_id) != user_id:  
         logging.debug(f"User {user_id} attempted to update rating {id} owned by {rating.user_id}")
         return jsonify({'error': 'You can only edit your own ratings'}), 403
@@ -126,6 +142,7 @@ def update_rating(id):
         db.session.rollback()
         return jsonify({'error': f'Failed to update rating: {str(e)}'}), 500
 
+# This allows the users to delete their ratings
 @rating_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_rating(id):
@@ -136,6 +153,8 @@ def delete_rating(id):
         logging.debug(f"Rating {id} not found")
         return jsonify({'error': f'Rating with ID {id} not found'}), 404
     logging.debug(f"Rating user_id: {rating.user_id}")
+
+    # This only allows users to remove their ratings if they have the same ids
     if str(rating.user_id) != user_id:
         logging.debug(f"User {user_id} attempted to delete rating {id} owned by {rating.user_id}")
         return jsonify({'error': 'You can only delete your own ratings'}), 403

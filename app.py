@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -12,9 +11,12 @@ from routes.actor_routes import actor_bp
 from extensions import db, migrate
 from config.config import Config
 
+# This function creates the Flask application 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Secret keys for the app and JWT tokens
     app.secret_key = 'your-secret-key-here'
     app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key-here'
     app.config['JWT_TOKEN_LOCATION'] = ['cookies', 'headers']
@@ -22,6 +24,8 @@ def create_app(config_class=Config):
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
 
     jwt = JWTManager(app)
+
+    # Configuration CORS 
     CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
     print("CORS configured with origins: http://localhost:3000")
     app.logger.debug("Starting Flask app")
@@ -29,6 +33,8 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
 
+
+    # This registers the blueprints 
     app.register_blueprint(movie_bp, url_prefix='/movies')
     app.register_blueprint(ranking_bp, url_prefix='/ranking')
     app.register_blueprint(watchlist_bp, url_prefix='/watchlists')
@@ -43,6 +49,7 @@ def create_app(config_class=Config):
 
     return app
 
+# This is the entry point for the application
 if __name__ == '__main__':
     app = create_app()
     with app.app_context():
